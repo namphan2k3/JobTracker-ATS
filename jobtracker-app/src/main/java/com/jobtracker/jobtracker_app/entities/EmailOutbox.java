@@ -23,7 +23,7 @@ public class EmailOutbox extends SystemAuditEntity {
     String id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "email_type", nullable = false, length = 50)
+    @Column(name = "email_type", nullable = false, length = 100)
     EmailType emailType;
 
     @Column(name = "aggregate_type", nullable = false, length = 50)
@@ -39,11 +39,26 @@ public class EmailOutbox extends SystemAuditEntity {
     @Column(name = "to_email", nullable = false, length = 255)
     String toEmail;
 
+    @Column(name = "to_name", length = 255)
+    String toName;
+
+    @Column(name = "from_email", nullable = false, length = 255)
+    String fromEmail;
+
+    @Column(name = "from_name", nullable = false, length = 255)
+    String fromName;
+
+    @Column(name = "reply_to_email", length = 255)
+    String replyToEmail;
+
+    @Column(name = "reply_to_name", length = 255)
+    String replyToName;
+
     @Column(nullable = false, length = 500)
     String subject;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    String body;
+    @Column(name = "html_body", nullable = false, columnDefinition = "MEDIUMTEXT")
+    String htmlBody;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -63,5 +78,8 @@ public class EmailOutbox extends SystemAuditEntity {
 
     @Column(name = "failed_reason", columnDefinition = "TEXT")
     String failedReason;
+
+    @Column(name = "provider_message_id", length = 255)
+    String providerMessageId;
 }
 

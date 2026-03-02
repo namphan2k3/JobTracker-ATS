@@ -16,7 +16,7 @@ databaseChangeLog:
                   remarks: "UUID email outbox"
               - column:
                   name: email_type
-                  type: varchar(50)
+                  type: varchar(100)
                   constraints:
                     nullable: false
                   remarks: "Loại email (WELCOME, PAYMENT_SUCCESS, INTERVIEW_SCHEDULE, OFFER_LETTER, REJECTION)"
@@ -45,17 +45,41 @@ databaseChangeLog:
                     nullable: false
                   remarks: "Email người nhận"
               - column:
+                  name: to_name
+                  type: varchar(255)
+                  remarks: "Tên người nhận"
+              - column:
+                  name: from_email
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                  remarks: "System domain email"
+              - column:
+                  name: from_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                  remarks: "Tên người gửi"
+              - column:
+                  name: reply_to_email
+                  type: varchar(255)
+                  remarks: "Email HR công ty"
+              - column:
+                  name: reply_to_name
+                  type: varchar(255)
+                  remarks: "Tên reply"
+              - column:
                   name: subject
                   type: varchar(500)
                   constraints:
                     nullable: false
                   remarks: "Tiêu đề email"
               - column:
-                  name: body
-                  type: text
+                  name: html_body
+                  type: mediumtext
                   constraints:
                     nullable: false
-                  remarks: "Nội dung email"
+                  remarks: "Nội dung HTML"
               - column:
                   name: status
                   type: varchar(20)
@@ -90,6 +114,10 @@ databaseChangeLog:
                   type: text
                   remarks: "Lý do thất bại"
               - column:
+                  name: provider_message_id
+                  type: varchar(255)
+                  remarks: "Message ID từ email provider"
+              - column:
                   name: created_at
                   type: timestamp
                   defaultValueComputed: CURRENT_TIMESTAMP
@@ -100,3 +128,39 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   remarks: "Thời gian cập nhật"
 
+  - changeSet:
+      id: alter-table-email-outbox-add-missing-columns
+      author: namphan
+      changes:
+        - addColumn:
+            tableName: email_outbox
+            columns:
+              - column:
+                  name: to_name
+                  type: varchar(255)
+                  remarks: "Tên người nhận"
+              - column:
+                  name: from_email
+                  type: varchar(255)
+                  remarks: "System domain email"
+              - column:
+                  name: from_name
+                  type: varchar(255)
+                  remarks: "Tên người gửi"
+              - column:
+                  name: reply_to_email
+                  type: varchar(255)
+                  remarks: "Email HR công ty"
+              - column:
+                  name: reply_to_name
+                  type: varchar(255)
+                  remarks: "Tên reply"
+              - column:
+                  name: provider_message_id
+                  type: varchar(255)
+                  remarks: "Message ID từ email provider"
+        - renameColumn:
+            tableName: email_outbox
+            oldColumnName: body
+            newColumnName: html_body
+            columnDataType: mediumtext
