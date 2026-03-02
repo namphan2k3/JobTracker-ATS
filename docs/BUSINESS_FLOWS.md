@@ -695,7 +695,34 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 > - `offer_*` có thể được lưu vào entity offer (khi implement) để các email kế tiếp auto-fill, không cần nhập lại.
 > - Tại thời điểm gửi email, UI luôn rõ ràng: biến nào hệ thống tự fill (read-only), biến nào HR phải điền giá trị (input field).
 
-### 6.6. Màn hình / tính năng cần có quanh email
+### 6.6. Kiến trúc Email: Engine Layer vs Admin Layer
+
+#### 🏗 Email Engine Layer (Backend)
+
+```
+EmailTemplateService
+EmailRenderService
+EmailOutboxService
+EmailSchedulerWorker
+```
+
+- **Business services** (apply, interview, offer, reject) → push record vào `email_outbox` với snapshot nội dung.
+- **Scheduler** đọc `PENDING` / `FAILED` (retry) → gửi qua Brevo → cập nhật status.
+- **Email outbox** không chỉ là queue nội bộ mà còn là **communication history** – audit log, delivery tracking, debug tool.
+
+#### 🖥 Admin Layer (API cho HR)
+
+| API | Mục đích |
+|-----|----------|
+| **Email Template APIs** | Full CRUD + Preview + Send Test |
+| **Email History APIs** | Read-only + Resend (không CREATE/UPDATE/DELETE) |
+
+**Email History API** phục vụ:
+- **Support**: HR hỏi "Ứng viên bảo chưa nhận email?" → tra cứu lịch sử.
+- **Production**: Brevo downtime → nhiều FAILED → resend thủ công.
+- **Compliance**: "Cho tôi log tất cả email đã gửi cho ứng viên A trong tháng 2".
+
+### 6.7. Màn hình / tính năng cần có quanh email
 
 - **Template List**:
   - Liệt kê tất cả templates (code, name, status active/inactive).
@@ -712,10 +739,11 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
   - Xem lịch sử email đã/quá gửi (từ `email_outbox`):
     - Filter theo `status` (`PENDING`, `SENT`, `FAILED`), `email_type`, `aggregate_type`, `aggregate_id`, `created_at`.
   - Cho phép xem chi tiết 1 email (subject, body, lỗi nếu `FAILED`).
+  - **Resend thủ công** cho email FAILED (optional).
 - **Bulk Email Action**:
   - Hỗ trợ các actions gửi hàng loạt (ví dụ bulk reject) thông qua việc sinh nhiều bản ghi trong `email_outbox` thay vì gửi trực tiếp.
 
-### 6.7. Xử lý lỗi gửi email, retry & resend
+### 6.8. Xử lý lỗi gửi email, retry & resend
 
 - **Worker / scheduler**:
   - Định kỳ quét `email_outbox` với:
@@ -726,17 +754,20 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
     - Nếu lỗi (timeout, 4xx/5xx, network, ...) → tăng `retry_count`, set `next_retry_at` cho lần thử kế tiếp.
   - Nếu `retry_count` vượt `max_retries`:
     - Đặt `status = FAILED`, lưu `failed_reason`.
-- **UI cho HR**:
-  - Có thể thấy những email `FAILED` trong Email History.
+- **UI cho HR** (qua Email History API):
+  - Xem lịch sử email đã gửi / đang chờ / thất bại.
   - Hành động **Resend**:
-    - Hoặc reset `status` về `PENDING`, `retry_count = 0`.
-    - Hoặc tạo bản ghi mới dựa trên snapshot nội dung từ bản ghi cũ (tuỳ implement).
+    - Reset `status` về `PENDING`, `retry_count = 0` → scheduler pick up và gửi lại.
+    - Use case: Brevo downtime, nhiều email FAILED → HR resend hàng loạt.
 
-### 6.8. Tóm tắt năng lực hệ thống email
+### 6.9. Tóm tắt năng lực hệ thống email
 
 - Gửi email **tự động** theo các sự kiện (ứng viên apply, đổi status, tạo/đổi lịch interview, deadline gần, ...).
 - Gửi email **thủ công** từ HR (mời phỏng vấn, đổi lịch, offer, reject, bulk reject).
 - Hỗ trợ **template động** với biến được quản lý tập trung, không cho HR viết logic.
+- **Email Outbox** = queue + communication history:
+  - Scheduler: auto retry.
+  - Admin API: read-only + resend cho support, debug, compliance.
 - Đảm bảo:
   - Reply trong email được route về HR (qua `reply_to_email`).
   - Gửi số lượng lớn thông qua `email_outbox` + worker, không block request.

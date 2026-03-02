@@ -2607,6 +2607,333 @@ Soft delete application status (chỉ khi không có applications nào đang dù
 }
 ```
 
+## 📧 Email Management APIs
+
+> **Kiến trúc**: Email Engine (Template + Outbox + Scheduler) phục vụ backend; Admin API expose cho HR quản lý template + xem lịch sử gửi.
+
+### 📝 Email Template APIs (Full CRUD)
+
+HR quản lý email templates (global hoặc override theo company). Template dùng cho các flow: apply, interview, offer, rejection, v.v.
+
+#### 1. Get Email Templates
+**GET** `/admin/email-templates`
+
+Lấy danh sách email templates của company hiện tại (bao gồm global templates `company_id = NULL` và company overrides).
+
+##### Query Parameters
+| Param | Type | Mô tả |
+|-------|------|-------|
+| `code` | string | Filter theo code (WELCOME, INTERVIEW_INVITE, OFFER_LETTER, ...) |
+| `name` | string | Search theo tên |
+| `isActive` | boolean | Filter theo trạng thái active |
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Email templates retrieved successfully",
+  "data": [
+    {
+      "id": "tpl1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+      "companyId": null,
+      "code": "APPLICATION_RECEIVED",
+      "name": "Xác nhận nhận đơn",
+      "subject": "Chúng tôi đã nhận đơn ứng tuyển của bạn",
+      "variables": [],
+      "fromName": null,
+      "isActive": true,
+      "isGlobal": true,
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### 2. Get Email Template by ID
+**GET** `/admin/email-templates/{id}`
+
+Lấy chi tiết template (bao gồm `htmlContent`).
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "tpl1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+    "companyId": null,
+    "code": "APPLICATION_RECEIVED",
+    "name": "Xác nhận nhận đơn",
+    "subject": "Chúng tôi đã nhận đơn ứng tuyển của bạn",
+    "htmlContent": "<p>Xin chào {{candidate_name}}, ...</p>",
+    "variables": ["candidate_name", "job_title", "company_name", "application_link"],
+    "fromName": null,
+    "isActive": true,
+    "isGlobal": true,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### 3. Create Email Template
+**POST** `/admin/email-templates`
+
+Tạo template mới cho company (override global). Chỉ COMPANY_ADMIN/HR Admin.
+
+##### Request Body
+```json
+{
+  "code": "INTERVIEW_INVITE",
+  "name": "Mời phỏng vấn (Custom)",
+  "subject": "Mời bạn tham gia phỏng vấn - {{job_title}}",
+  "htmlContent": "<p>Xin chào {{candidate_name}}, ...</p>",
+  "variables": ["candidate_name", "job_title", "interview_time", "meeting_link"],
+  "fromName": "HR Team",
+  "isActive": true
+}
+```
+
+##### Response (201 Created)
+```json
+{
+  "success": true,
+  "message": "Email template created successfully",
+  "data": {
+    "id": "tpl2a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+    "companyId": "c1f9a8e2-3b4c-5d6e-7f80-1234567890ab",
+    "code": "INTERVIEW_INVITE",
+    "name": "Mời phỏng vấn (Custom)",
+    "subject": "Mời bạn tham gia phỏng vấn - {{job_title}}",
+    "isActive": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### 4. Update Email Template
+**PUT** `/admin/email-templates/{id}`
+
+Cập nhật template (subject, htmlContent, fromName, isActive).
+
+##### Request Body
+```json
+{
+  "subject": "Mời phỏng vấn - {{company_name}}",
+  "htmlContent": "<p>Nội dung cập nhật...</p>",
+  "fromName": "Tuyển dụng",
+  "isActive": true
+}
+```
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Email template updated successfully",
+  "data": {
+    "id": "tpl2a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+    "code": "INTERVIEW_INVITE",
+    "name": "Mời phỏng vấn (Custom)",
+    "updatedAt": "2024-01-15T11:00:00Z"
+  },
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+#### 5. Delete Email Template
+**DELETE** `/admin/email-templates/{id}`
+
+Soft delete template (chỉ template thuộc company, không xóa global).
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Email template deleted successfully",
+  "data": null,
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+#### 6. Preview Email Template
+**POST** `/admin/email-templates/{id}/preview`
+
+Render template với data mẫu hoặc data thật (applicationId, interviewId).
+
+##### Request Body
+```json
+{
+  "sampleData": {
+    "candidate_name": "Nguyễn Văn A",
+    "job_title": "Backend Developer",
+    "company_name": "Acme Corp",
+    "application_link": "https://app.jobtracker.com/status?token=xxx",
+    "interview_time": "2024-01-20 14:00",
+    "meeting_link": "https://meet.google.com/xxx"
+  }
+}
+```
+
+Hoặc dùng entity thật:
+```json
+{
+  "applicationId": "app1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6"
+}
+```
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "subject": "Mời bạn tham gia phỏng vấn - Backend Developer",
+    "htmlContent": "<p>Xin chào Nguyễn Văn A, ...</p>"
+  },
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+#### 7. Send Test Email
+**POST** `/admin/email-templates/{id}/send-test`
+
+Gửi email test tới địa chỉ chỉ định (mặc định email HR hiện tại).
+
+##### Request Body
+```json
+{
+  "toEmail": "hr@company.com"
+}
+```
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Test email queued successfully",
+  "data": null,
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+> Record được tạo trong `email_outbox` với `aggregate_type = USER`, scheduler sẽ gửi.
+
+---
+
+### 📬 Email History APIs (Read-only + Resend)
+
+> **Mục đích**: Support, debug, compliance. Email outbox không chỉ là queue nội bộ mà còn là **communication history** – audit log, delivery tracking, debug tool.
+
+**Giới hạn**: Chỉ **read** + **resend**. Không CREATE, UPDATE, DELETE.
+
+#### 1. Get Email History
+**GET** `/admin/email-history`
+
+Xem lịch sử email đã gửi / đang chờ / thất bại. Filter theo company hiện tại.
+
+##### Query Parameters
+| Param | Type | Mô tả |
+|-------|------|-------|
+| `status` | string | PENDING, SENT, FAILED |
+| `emailType` | string | WELCOME, INTERVIEW_INVITE, OFFER_LETTER, REJECTION, ... |
+| `aggregateType` | string | USER, APPLICATION, INTERVIEW |
+| `aggregateId` | string | UUID của entity |
+| `toEmail` | string | Filter theo người nhận |
+| `startDate` | date | Từ ngày |
+| `endDate` | date | Đến ngày |
+| `page` | int | Pagination (default 0) |
+| `size` | int | Size (default 20) |
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "content": [
+      {
+        "id": "out1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+        "emailType": "INTERVIEW_INVITE",
+        "aggregateType": "APPLICATION",
+        "aggregateId": "app1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+        "toEmail": "candidate@example.com",
+        "toName": "Nguyễn Văn A",
+        "subject": "Mời phỏng vấn - Backend Developer",
+        "status": "SENT",
+        "retryCount": 0,
+        "sentAt": "2024-01-15T10:00:00Z",
+        "createdAt": "2024-01-15T09:55:00Z"
+      }
+    ],
+    "totalElements": 150,
+    "totalPages": 8,
+    "number": 0,
+    "size": 20
+  },
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+#### 2. Get Email History Detail
+**GET** `/admin/email-history/{id}`
+
+Xem chi tiết 1 email (subject, body, failed_reason nếu FAILED).
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "out1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+    "emailType": "INTERVIEW_INVITE",
+    "aggregateType": "APPLICATION",
+    "aggregateId": "app1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+    "toEmail": "candidate@example.com",
+    "toName": "Nguyễn Văn A",
+    "fromEmail": "noreply@jobtracker.com",
+    "fromName": "Acme Corp",
+    "replyToEmail": "hr@acme.com",
+    "subject": "Mời phỏng vấn - Backend Developer",
+    "htmlBody": "<p>Xin chào Nguyễn Văn A, ...</p>",
+    "status": "FAILED",
+    "retryCount": 3,
+    "maxRetries": 3,
+    "nextRetryAt": null,
+    "sentAt": null,
+    "failedReason": "Connection timeout to Brevo",
+    "providerMessageId": null,
+    "createdAt": "2024-01-15T09:55:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  },
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+#### 3. Resend Email (Manual)
+**POST** `/admin/email-history/{id}/resend`
+
+Resend thủ công email FAILED (reset `status = PENDING`, `retry_count = 0`). Scheduler sẽ pick up và gửi lại.
+
+> **Use case**: Brevo downtime → nhiều email FAILED → HR/Support resend hàng loạt.
+
+##### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Email queued for resend",
+  "data": null,
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+##### Error (400 Bad Request)
+- Email đang PENDING hoặc đã SENT → không cho resend.
+
+---
+
 ## 🔐 RBAC & Permission APIs
 
 > ⚠️ Các endpoint này yêu cầu quyền `ADMIN`.
