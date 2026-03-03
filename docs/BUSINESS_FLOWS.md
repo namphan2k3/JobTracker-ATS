@@ -402,6 +402,15 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
   - `code` = `WELCOME`, `INTERVIEW_INVITE`, `OFFER_LETTER`, `REJECTION`, ...
   - Có thể global (`company_id = NULL`) hoặc override theo company.
 
+- **CandidateWorkflowLayout** (layout cho email automation gửi candidate):
+  - Cấu trúc: `{{content}}` + footer cố định + `{{application_link}}`.
+  - `{{content}}`: Nội dung chính từ template workflow (APPLICATION_CONFIRMATION, INTERVIEW_SCHEDULED, OFFER_CREATED, CANDIDATE_REJECTED, ...). Mỗi template chỉ định nghĩa phần content.
+  - Footer: Phần cố định (logo công ty, địa chỉ, link unsubscribe).
+  - `{{application_link}}`: Link track status dạng `app.example.com/status?token={applicationToken}` — candidate click để xem trạng thái hồ sơ.
+  - Hệ thống wrap content bằng layout này khi gửi các email: apply confirmation, interview invite/reschedule, offer, hired, rejected.
+
+- **User/Auth emails**: `USER_INVITE`, `USER_INVITE_RESEND`, `EMAIL_VERIFICATION`, `EMAIL_VERIFICATION_RESEND`, `PASSWORD_RESET` — trigger từ API invite, verify, forgot-password.
+
 - **Outbox** (`email_outbox`):
   - Trường business:
     - `email_type`, `aggregate_type` (`USER`, `APPLICATION`, `INTERVIEW`), `aggregate_id`, `company_id`.

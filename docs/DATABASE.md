@@ -95,11 +95,22 @@ JobTracker ATS (Applicant Tracking System) sử dụng **MySQL 8.0** làm databa
 - `FAILED` - Gửi thất bại
 
 ### 12. Email Type ENUM (`email_outbox.email_type`)
-- `WELCOME` - Email chào mừng
-- `PAYMENT_SUCCESS` - Email xác nhận thanh toán thành công
-- `INTERVIEW_SCHEDULE` - Email lên lịch phỏng vấn
-- `OFFER_LETTER` - Email thư mời làm việc
-- `REJECTION` - Email từ chối ứng viên
+
+**User & Auth:**
+- `USER_INVITE` - Invite user (POST /admin/users/invite)
+- `USER_INVITE_RESEND` - Resend invite (POST /admin/users/{userId}/resend-invite)
+- `EMAIL_VERIFICATION` - Verify email (POST /auth/verify-email)
+- `EMAIL_VERIFICATION_RESEND` - Resend verification (POST /auth/resend-verification)
+- `PASSWORD_RESET` - Forgot password (POST /auth/forgot-password)
+
+**Application Workflow** (dùng CandidateWorkflowLayout):
+- `APPLICATION_CONFIRMATION` - Xác nhận nhận đơn
+- `INTERVIEW_SCHEDULED` - Mời phỏng vấn
+- `INTERVIEW_RESCHEDULED` - Đổi lịch phỏng vấn
+- `OFFER_CREATED` - Thư mời làm việc (auto)
+- `MANUAL_OFFER` - Thư offer thủ công
+- `CANDIDATE_HIRED` - Chúc mừng trúng tuyển
+- `CANDIDATE_REJECTED` - Từ chối ứng viên
 
 ## Database Schema
 

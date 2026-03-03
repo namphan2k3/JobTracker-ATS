@@ -2611,6 +2611,55 @@ Soft delete application status (chỉ khi không có applications nào đang dù
 
 > **Kiến trúc**: Email Engine (Template + Outbox + Scheduler) phục vụ backend; Admin API expose cho HR quản lý template + xem lịch sử gửi.
 
+### 📋 Email Types Reference
+
+Bảng ánh xạ **Email Type** ↔ API / flow gửi email:
+
+#### 1. User & Auth Emails (aggregate_type = USER)
+
+| Email Type | API / Trigger | Mô tả |
+|------------|---------------|-------|
+| `USER_INVITE` | **POST** `/admin/users/invite` | Invite User (Create User via Invite). Gửi email với link accept-invite. |
+| `USER_INVITE_RESEND` | **POST** `/admin/users/{userId}/resend-invite` | Resend Invite. Gửi lại invite email cho user chưa verify. |
+| `EMAIL_VERIFICATION` | **POST** `/auth/verify-email` | Email Verification. Token từ link verification trong email. |
+| `EMAIL_VERIFICATION_RESEND` | **POST** `/auth/resend-verification` | Resend Verification Email. Gửi lại email verification. |
+| `PASSWORD_RESET` | **POST** `/auth/forgot-password` | Forgot Password. Gửi email reset password với link đặt lại mật khẩu. |
+
+#### 2. Application Workflow Emails (aggregate_type = APPLICATION / INTERVIEW)
+
+Các email automation workflow dùng **CandidateWorkflowLayout** (xem mục dưới):
+
+| Email Type | Trigger | Mô tả |
+|------------|---------|-------|
+| `APPLICATION_CONFIRMATION` | Candidate apply thành công | Xác nhận nhận đơn, có link track status. |
+| `INTERVIEW_SCHEDULED` | HR tạo interview | Mời phỏng vấn (thời gian, meeting link). |
+| `INTERVIEW_RESCHEDULED` | HR đổi lịch interview | Thông báo đổi lịch phỏng vấn. |
+| `OFFER_CREATED` | Status → OFFER | Thư mời làm việc (auto từ workflow). |
+| `MANUAL_OFFER` | HR gửi offer thủ công | Thư offer với salary, start date, custom message. |
+| `CANDIDATE_HIRED` | Status → HIRED | Thông báo chúc mừng trúng tuyển. |
+| `CANDIDATE_REJECTED` | Status → REJECTED | Thông báo từ chối ứng viên. |
+
+#### 3. CandidateWorkflowLayout (Layout cho automation workflow emails)
+
+Email gửi cho candidate trong application workflow có **footer** chứa tracking link. Layout:
+
+```
+{{content}}
+---
+<footer>
+  [Footer cố định: thông tin công ty, unsubscribe, v.v.]
+  View your application status: {{application_link}}
+</footer>
+```
+
+- **`{{content}}`**: Nội dung chính từ template workflow (APPLICATION_CONFIRMATION, INTERVIEW_SCHEDULED, OFFER_CREATED, ...).
+- **Footer**: Phần cố định (logo, địa chỉ, link unsubscribe).
+- **`{{application_link}}`**: Link track status dạng `app.example.com/status?token={applicationToken}`.
+
+Template workflow chỉ định nghĩa `content`; hệ thống wrap bằng layout này khi gửi.
+
+---
+
 ### 📝 Email Template APIs (Full CRUD)
 
 HR quản lý email templates (global hoặc override theo company). Template dùng cho các flow: apply, interview, offer, rejection, v.v.
