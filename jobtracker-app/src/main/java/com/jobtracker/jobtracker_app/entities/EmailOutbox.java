@@ -1,6 +1,7 @@
 package com.jobtracker.jobtracker_app.entities;
 
 import com.jobtracker.jobtracker_app.entities.base.SystemAuditEntity;
+import com.jobtracker.jobtracker_app.enums.AggregateType;
 import com.jobtracker.jobtracker_app.enums.EmailStatus;
 import com.jobtracker.jobtracker_app.enums.EmailType;
 import jakarta.persistence.*;
@@ -26,8 +27,9 @@ public class EmailOutbox extends SystemAuditEntity {
     @Column(name = "email_type", nullable = false, length = 100)
     EmailType emailType;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "aggregate_type", nullable = false, length = 50)
-    String aggregateType;
+    AggregateType aggregateType;
 
     @Column(name = "aggregate_id", nullable = false, length = 36)
     String aggregateId;

@@ -5,6 +5,8 @@ import com.jobtracker.jobtracker_app.dto.requests.email.ManualOfferRequest;
 import com.jobtracker.jobtracker_app.dto.requests.email.SendEmailRequest;
 import com.jobtracker.jobtracker_app.entities.Application;
 import com.jobtracker.jobtracker_app.entities.Interview;
+import com.jobtracker.jobtracker_app.entities.User;
+import com.jobtracker.jobtracker_app.enums.AggregateType;
 import com.jobtracker.jobtracker_app.enums.EmailType;
 import com.jobtracker.jobtracker_app.enums.ManualVariable;
 import com.jobtracker.jobtracker_app.services.EmailOutboxService;
@@ -38,11 +40,14 @@ public class EmailServiceImpl implements EmailService {
         sendEmail(
                 EmailType.APPLICATION_CONFIRMATION,
                 application.getCompany().getId(),
+                AggregateType.APPLICATION,
+                application.getId(),
                 application.getCandidateEmail(),
                 application.getCandidateName(),
+                null,
+                null,
                 context
         );
-
     }
 
 
@@ -61,8 +66,12 @@ public class EmailServiceImpl implements EmailService {
         sendEmail(
                 EmailType.INTERVIEW_SCHEDULED,
                 interview.getCompany().getId(),
+                AggregateType.INTERVIEW,
+                interview.getId(),
                 interview.getApplication().getCandidateEmail(),
                 interview.getApplication().getCandidateName(),
+                getCurrentUserReplyToEmail(),
+                getCurrentUserReplyToName(),
                 context
         );
     }
@@ -82,8 +91,12 @@ public class EmailServiceImpl implements EmailService {
         sendEmail(
                 EmailType.INTERVIEW_RESCHEDULED,
                 interview.getCompany().getId(),
+                AggregateType.INTERVIEW,
+                interview.getId(),
                 interview.getApplication().getCandidateEmail(),
                 interview.getApplication().getCandidateName(),
+                getCurrentUserReplyToEmail(),
+                getCurrentUserReplyToName(),
                 context
         );
     }
@@ -102,8 +115,12 @@ public class EmailServiceImpl implements EmailService {
         sendEmail(
                 EmailType.CANDIDATE_REJECTED,
                 application.getCompany().getId(),
+                AggregateType.APPLICATION,
+                application.getId(),
                 application.getCandidateEmail(),
                 application.getCandidateName(),
+                getCurrentUserReplyToEmail(),
+                getCurrentUserReplyToName(),
                 context
         );
     }
@@ -122,8 +139,12 @@ public class EmailServiceImpl implements EmailService {
         sendEmail(
                 EmailType.CANDIDATE_HIRED,
                 application.getCompany().getId(),
+                AggregateType.APPLICATION,
+                application.getId(),
                 application.getCandidateEmail(),
                 application.getCandidateName(),
+                getCurrentUserReplyToEmail(),
+                getCurrentUserReplyToName(),
                 context
         );
     }
@@ -134,6 +155,8 @@ public class EmailServiceImpl implements EmailService {
     public void sendManualOffer(Application application, ManualOfferRequest request) {
         Map<String, Object> manualMap = new HashMap<>();
 
+        User user = securityUtils.getCurrentUser();
+
         manualMap.put(ManualVariable.OFFER_SALARY.getKey(), request.getOfferSalary());
         manualMap.put(ManualVariable.OFFER_START_DATE.getKey(), request.getOfferStartDate());
         manualMap.put(ManualVariable.OFFER_EXPIRE_DATE.getKey(), request.getOfferExpireDate());
@@ -142,15 +165,19 @@ public class EmailServiceImpl implements EmailService {
         EmailContext context = EmailContext.builder()
                 .applicationId(application.getId())
                 .companyId(application.getCompany().getId())
-                .userId(securityUtils.getCurrentUser().getId())
+                .userId(user.getId())
                 .manualValues(manualMap)
                 .build();
 
         sendEmail(
-                EmailType.CANDIDATE_HIRED,
+                EmailType.MANUAL_OFFER,
                 application.getCompany().getId(),
+                AggregateType.APPLICATION,
+                application.getId(),
                 application.getCandidateEmail(),
                 application.getCandidateName(),
+                getCurrentUserReplyToEmail(),
+                getCurrentUserReplyToName(),
                 context
         );
     }
@@ -158,20 +185,38 @@ public class EmailServiceImpl implements EmailService {
     private void sendEmail(
             EmailType type,
             String companyId,
+            AggregateType aggregateType,
+            String aggregateId,
             String recipientEmail,
             String recipientName,
+            String replyToEmail,
+            String replyToName,
             EmailContext context
     ) {
-
         SendEmailRequest request = SendEmailRequest.builder()
                 .companyId(companyId)
                 .templateCode(type)
+                .aggregateType(aggregateType)
+                .aggregateId(aggregateId)
                 .recipientEmail(recipientEmail)
                 .recipientName(recipientName)
+                .replyToEmail(replyToEmail)
+                .replyToName(replyToName)
                 .context(context)
                 .build();
 
         emailOutboxService.createEmailOutbox(request);
+    }
+
+    private String getCurrentUserReplyToEmail() {
+        return securityUtils.getCurrentUser().getEmail();
+    }
+
+    private String getCurrentUserReplyToName() {
+        User user = securityUtils.getCurrentUser();
+        String firstName = user.getFirstName() != null ? user.getFirstName() : "";
+        String lastName = user.getLastName() != null ? user.getLastName() : "";
+        return (firstName + " " + lastName).trim();
     }
 
     private Map<String, Object> buildManualMap(String customMessage) {

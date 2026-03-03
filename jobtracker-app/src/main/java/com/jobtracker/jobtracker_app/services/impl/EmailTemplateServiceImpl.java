@@ -5,6 +5,7 @@ import com.jobtracker.jobtracker_app.dto.requests.email.*;
 import com.jobtracker.jobtracker_app.dto.responses.email.*;
 import com.jobtracker.jobtracker_app.entities.EmailTemplate;
 import com.jobtracker.jobtracker_app.entities.User;
+import com.jobtracker.jobtracker_app.enums.AggregateType;
 import com.jobtracker.jobtracker_app.enums.EmailType;
 import com.jobtracker.jobtracker_app.exceptions.AppException;
 import com.jobtracker.jobtracker_app.exceptions.ErrorCode;
@@ -155,10 +156,12 @@ public class EmailTemplateServiceImpl implements EmailTemplateService {
         SendEmailRequest sendRequest = SendEmailRequest.builder()
                         .templateCode(emailType)
                         .companyId(currentUser.getCompany().getId())
-                        .aggregateType("USER")
+                        .aggregateType(AggregateType.USER)
                         .aggregateId(currentUser.getId())
                         .recipientEmail(toEmail)
                         .recipientName(currentUser.getFirstName() + " " + currentUser.getLastName())
+                        .replyToEmail(currentUser.getEmail())
+                        .replyToName((currentUser.getFirstName() + " " + currentUser.getLastName()).trim())
                         .context(context)
                         .build();
 
