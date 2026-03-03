@@ -2627,7 +2627,7 @@ Bảng ánh xạ **Email Type** ↔ API / flow gửi email:
 
 #### 2. Application Workflow Emails (aggregate_type = APPLICATION / INTERVIEW)
 
-Các email automation workflow dùng **CandidateWorkflowLayout** (xem mục dưới):
+Các email automation workflow dùng layout type **CANDIDATE_WORKFLOW_LAYOUT** (xem mục dưới):
 
 | Email Type | Trigger | Mô tả |
 |------------|---------|-------|
@@ -2639,9 +2639,9 @@ Các email automation workflow dùng **CandidateWorkflowLayout** (xem mục dư�
 | `CANDIDATE_HIRED` | Status → HIRED | Thông báo chúc mừng trúng tuyển. |
 | `CANDIDATE_REJECTED` | Status → REJECTED | Thông báo từ chối ứng viên. |
 
-#### 3. CandidateWorkflowLayout (Layout cho automation workflow emails)
+#### 3. CANDIDATE_WORKFLOW_LAYOUT (Layout type cho automation workflow emails)
 
-Email gửi cho candidate trong application workflow có **footer** chứa tracking link. Layout:
+Layout type: `CANDIDATE_WORKFLOW_LAYOUT`. Email gửi cho candidate trong application workflow có **footer** chứa tracking link. Cấu trúc:
 
 ```
 {{content}}
@@ -2656,7 +2656,7 @@ Email gửi cho candidate trong application workflow có **footer** chứa track
 - **Footer**: Phần cố định (logo, địa chỉ, link unsubscribe).
 - **`{{application_link}}`**: Link track status dạng `app.example.com/status?token={applicationToken}`.
 
-Template workflow chỉ định nghĩa `content`; hệ thống wrap bằng layout này khi gửi.
+Template workflow chỉ định nghĩa `content`; hệ thống wrap bằng layout type này khi gửi.
 
 ---
 

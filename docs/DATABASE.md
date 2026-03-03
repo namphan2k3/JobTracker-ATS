@@ -103,7 +103,7 @@ JobTracker ATS (Applicant Tracking System) sử dụng **MySQL 8.0** làm databa
 - `EMAIL_VERIFICATION_RESEND` - Resend verification (POST /auth/resend-verification)
 - `PASSWORD_RESET` - Forgot password (POST /auth/forgot-password)
 
-**Application Workflow** (dùng CandidateWorkflowLayout):
+**Application Workflow** (dùng layout type `CANDIDATE_WORKFLOW_LAYOUT`):
 - `APPLICATION_CONFIRMATION` - Xác nhận nhận đơn
 - `INTERVIEW_SCHEDULED` - Mời phỏng vấn
 - `INTERVIEW_RESCHEDULED` - Đổi lịch phỏng vấn
@@ -111,6 +111,10 @@ JobTracker ATS (Applicant Tracking System) sử dụng **MySQL 8.0** làm databa
 - `MANUAL_OFFER` - Thư offer thủ công
 - `CANDIDATE_HIRED` - Chúc mừng trúng tuyển
 - `CANDIDATE_REJECTED` - Từ chối ứng viên
+
+### 12b. Email Layout Type ENUM
+
+- `CANDIDATE_WORKFLOW_LAYOUT` - Layout cho email automation workflow: `{{content}}` + footer + `{{application_link}}`
 
 ## Database Schema
 
