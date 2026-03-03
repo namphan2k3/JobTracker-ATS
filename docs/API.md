@@ -2642,7 +2642,6 @@ Lấy danh sách email templates của company hiện tại (bao gồm global te
       "variables": [],
       "fromName": null,
       "isActive": true,
-      "isGlobal": true,
       "createdAt": "2024-01-01T00:00:00Z",
       "updatedAt": "2024-01-15T10:30:00Z"
     }
@@ -2670,7 +2669,6 @@ Lấy chi tiết template (bao gồm `htmlContent`).
     "variables": ["candidate_name", "job_title", "company_name", "application_link"],
     "fromName": null,
     "isActive": true,
-    "isGlobal": true,
     "createdAt": "2024-01-01T00:00:00Z",
     "updatedAt": "2024-01-15T10:30:00Z"
   },
@@ -2731,14 +2729,23 @@ Cập nhật template (subject, htmlContent, fromName, isActive).
 ```
 
 ##### Response (200 OK)
+
+Trả về `EmailTemplateResponse` (cùng cấu trúc với Create):
+
 ```json
 {
   "success": true,
   "message": "Email template updated successfully",
   "data": {
     "id": "tpl2a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+    "companyId": "c1f9a8e2-3b4c-5d6e-7f80-1234567890ab",
     "code": "INTERVIEW_INVITE",
     "name": "Mời phỏng vấn (Custom)",
+    "subject": "Mời phỏng vấn - {{company_name}}",
+    "variables": ["candidate_name", "job_title", "company_name", "meeting_link"],
+    "fromName": "Tuyển dụng",
+    "isActive": true,
+    "createdAt": "2024-01-15T10:30:00Z",
     "updatedAt": "2024-01-15T11:00:00Z"
   },
   "timestamp": "2024-01-15T11:00:00Z"
@@ -2840,11 +2847,11 @@ Xem lịch sử email đã gửi / đang chờ / thất bại. Filter theo compa
 |-------|------|-------|
 | `status` | string | PENDING, SENT, FAILED |
 | `emailType` | string | WELCOME, INTERVIEW_INVITE, OFFER_LETTER, REJECTION, ... |
-| `aggregateType` | string | USER, APPLICATION, INTERVIEW |
+| `aggregateType` | enum | USER, APPLICATION, INTERVIEW (AggregateType) |
 | `aggregateId` | string | UUID của entity |
 | `toEmail` | string | Filter theo người nhận |
-| `startDate` | date | Từ ngày |
-| `endDate` | date | Đến ngày |
+| `startDate` | datetime (ISO 8601) | Filter theo `createdAt` ≥ giá trị này (thời điểm record được tạo) |
+| `endDate` | datetime (ISO 8601) | Filter theo `createdAt` ≤ giá trị này (thời điểm record được tạo) |
 | `page` | int | Pagination (default 0) |
 | `size` | int | Size (default 20) |
 
