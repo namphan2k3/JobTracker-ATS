@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -57,7 +58,8 @@ public class EmailOutboxServiceImpl implements EmailOutboxService {
     @Transactional
     public void createEmailOutbox(SendEmailRequest request) {
         EmailTemplate template = emailTemplateRepository
-                .findByCodeAndCompany_IdAndIsActiveTrueAndDeletedAtIsNull(request.getTemplateCode().toString(), request.getCompanyId())
+                .findByCodeAndCompany_IdAndIsActiveTrueAndDeletedAtIsNull(request.getTemplateCode().toString(),
+                        request.getCompanyId())
                 .orElseGet(() ->
                         emailTemplateRepository
                                 .findByCodeAndCompanyIsNullAndIsActiveTrueAndDeletedAtIsNull(request.getTemplateCode().toString())
@@ -70,7 +72,22 @@ public class EmailOutboxServiceImpl implements EmailOutboxService {
         }
 
         String subject = templateRenderer.render(template.getSubject(), variables);
-        String html = templateRenderer.render(template.getHtmlContent(), variables);
+        String renderedContent = templateRenderer.render(template.getHtmlContent(), variables);
+
+        // Layout chứa footer tracking và variable content
+        EmailTemplate layoutTemplate = emailTemplateRepository
+                .findByCodeAndCompanyIsNullAndIsActiveTrueAndDeletedAtIsNull(EmailType.CANDIDATE_WORKFLOW_LAYOUT.toString())
+                .orElseThrow(() ->
+                        new AppException(ErrorCode.EMAIL_TEMPLATE_NOT_FOUND)
+                );
+
+        Map<String, Object> layoutVariables = new HashMap<>(variables);
+        layoutVariables.put("content", renderedContent);
+
+        String finalHtml = templateRenderer.render(
+                layoutTemplate.getHtmlContent(),
+                layoutVariables
+        );
 
         Company company = companyRepository.findByIdAndDeletedAtIsNull(request.getCompanyId())
                 .orElseThrow(() -> new AppException(ErrorCode.COMPANY_NOT_EXISTED));
@@ -90,7 +107,7 @@ public class EmailOutboxServiceImpl implements EmailOutboxService {
                 .replyToEmail(request.getReplyToEmail())
                 .replyToName(request.getReplyToName())
                 .subject(subject)
-                .htmlBody(html)
+                .htmlBody(finalHtml)
                 .status(EmailStatus.PENDING)
                 .retryCount(0)
                 .build();
