@@ -603,58 +603,41 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 #### 6.5.2. `email_template_types`, allowed_system_vars & allowed_manual_vars
 
 - Mỗi template có:
-  - **`email_template_type` / `email_type`**: ví dụ `INTERVIEW_INVITE`, `STATUS_CHANGED`, `OFFER_LETTER`, `REJECTION`, ...
+  - **`email_template_type` / `email_type`**: ví dụ `APPLICATION_CONFIRMATION`, `INTERVIEW_SCHEDULED`, `MANUAL_OFFER`, ...
   - **`allowed_system_vars`**: danh sách biến hệ thống **auto-fill** (HR chỉ chèn placeholder, không nhập giá trị).
   - **`allowed_manual_vars`**: danh sách biến cho phép HR **nhập tay** (thường chỉ 1–2 biến, như `custom_message`).
 - UI template chỉ hiển thị **subset hợp lệ** theo từng type, tránh việc HR được chơi với toàn bộ danh sách biến cùng lúc.
 
-- **Ví dụ – `INTERVIEW_INVITE`**
-  - `allowed_system_vars`:
-    - `company_name`
-    - `hr_name`
-    - `candidate_name`
-    - `job_title`
-    - `application_link`
-    - `interview_time`
-    - `interview_location`
-    - `meeting_link`
-  - `allowed_manual_vars`:
-    - `custom_message`
+---
 
-- **Ví dụ – `STATUS_CHANGED`**
-  - `allowed_system_vars`:
-    - `candidate_name`
-    - `job_title`
-    - `company_name`
-    - `application_status`
-    - `application_link`
-  - `allowed_manual_vars`:
-    - `hr_name`
-    - `custom_message`
+**📨 1️⃣ Application Emails**
 
-- **Ví dụ – `OFFER_LETTER`**
-  - `allowed_system_vars`:
-    - `candidate_name`
-    - `job_title`
-    - `company_name`
-    - `application_link`
-    - `hr_name`
-  - `allowed_manual_vars`:
-    - `offer_salary`
-    - `offer_start_date`
-    - `offer_expire_date`
-    - `custom_message`
+| Template code | allowed_system_vars | allowed_manual_vars |
+|---------------|---------------------|----------------------|
+| **APPLICATION_CONFIRMATION** (khi candidate apply thành công) | `candidate_name`, `job_title`, `company_name`, `application_link` | — |
+| **APPLICATION_STATUS_UPDATED** (chuyển trạng thái: screening → interview → rejected → hired) | `candidate_name`, `job_title`, `company_name`, `application_status`, `application_link` | `custom_message` |
+| **CANDIDATE_REJECTED** | `candidate_name`, `job_title`, `company_name`, `hr_name` | `custom_message` |
+| **CANDIDATE_HIRED** | `candidate_name`, `job_title`, `company_name`, `hr_name` | `custom_message` |
 
-- **Ví dụ – `REJECTION`**
-  - `allowed_system_vars`:
-    - `candidate_name`
-    - `job_title`
-    - `company_name`
-    - `application_link`
-    - `hr_name`
-  - `allowed_manual_vars`:
-    - `custom_message`
+---
 
+**🎤 2️⃣ Interview Emails**
+
+| Template code | allowed_system_vars | allowed_manual_vars |
+|---------------|---------------------|----------------------|
+| **INTERVIEW_SCHEDULED** | `candidate_name`, `job_title`, `company_name`, `interview_time`, `interview_location`, `meeting_link`, `hr_name` | `custom_message` |
+| **INTERVIEW_RESCHEDULED** | `candidate_name`, `job_title`, `company_name`, `interview_time`, `interview_location`, `meeting_link`, `hr_name` | `custom_message` |
+| **INTERVIEW_CANCELLED** | `candidate_name`, `job_title`, `company_name`, `hr_name` | `custom_message` |
+
+---
+
+**💼 3️⃣ Offer Emails**
+
+| Template code | allowed_system_vars | allowed_manual_vars |
+|---------------|---------------------|----------------------|
+| **MANUAL_OFFER** | `candidate_name`, `job_title`, `company_name`, `hr_name` | `offer_salary`, `offer_start_date`, `offer_expire_date`, `custom_message` |
+
+---
 
 > Nhờ việc **khóa danh sách biến theo từng `email_type`**:
 > - Backend biết rõ biến nào **được phép** xuất hiện trong template.
