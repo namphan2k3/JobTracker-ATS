@@ -79,6 +79,7 @@ public class RoleServiceImpl implements RoleService {
     @Transactional
     public RoleResponse update(String id, RoleUpdateRequest request) {
         Role role = roleRepository.findById(id)
+                .filter(r -> !r.isDeleted())
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
 
         roleMapper.updateRole(role, request);
@@ -90,7 +91,9 @@ public class RoleServiceImpl implements RoleService {
     @PreAuthorize("hasAuthority('ROLE_DELETE')")
     @Transactional
     public void delete(String id) {
-        Role role = roleRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
+        Role role = roleRepository.findById(id)
+                .filter(r -> !r.isDeleted())
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
         role.softDelete();
         roleRepository.save(role);
     }
@@ -99,11 +102,11 @@ public class RoleServiceImpl implements RoleService {
     @Transactional
     public void addPermissionToRole(String roleId, RolePermissionRequest request) {
         Role role = roleRepository.findById(roleId)
-                .filter(Role::getIsActive)
+                .filter(r -> Boolean.TRUE.equals(r.getIsActive()) && !r.isDeleted())
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
 
         Permission permission = permissionRepository.findById(request.getPermissionId())
-                .filter(Permission::getIsActive)
+                .filter(p -> Boolean.TRUE.equals(p.getIsActive()) && !p.isDeleted())
                 .orElseThrow(() -> new AppException(ErrorCode.PERMISSION_NOT_EXISTED));
 
         if (rolePermissionRepository.existsByRole_IdAndPermission_Id(role.getId(), permission.getId())) {
@@ -139,13 +142,13 @@ public class RoleServiceImpl implements RoleService {
     @Transactional
     public RolePermissionsUpdateResponse updateRolePermissions(String roleId, RolePermissionsRequest request) {
         Role role = roleRepository.findById(roleId)
-                .filter(Role::getIsActive)
+                .filter(r -> Boolean.TRUE.equals(r.getIsActive()) && !r.isDeleted())
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
 
         List<String> ids = request.getPermissionIds();
 
         List<Permission> permissions =
-                permissionRepository.findAllByIdInAndIsActiveTrue(ids);
+                permissionRepository.findAllByIdInAndIsActiveTrueAndDeletedAtIsNull(ids);
 
         if (permissions.size() != ids.size()) {
             throw new AppException(ErrorCode.PERMISSION_NOT_EXISTED);

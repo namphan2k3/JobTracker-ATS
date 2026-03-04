@@ -52,7 +52,7 @@ public class User extends FullAuditEntity {
     String avatarPublicId;
 
     @ManyToOne
-    @JoinColumn(name = "role_id", nullable = false)
+    @JoinColumn(name = "role_id")
     Role role;
 
     @Column(name = "is_active")

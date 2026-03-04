@@ -44,9 +44,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @PreAuthorize("hasAuthority('USER_READ')")
     public UserResponse getProfile() {
-        String id = getAuthenticationId();
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = securityUtils.getCurrentUser();
 
         return userMapper.toUserResponse(user);
     }
@@ -55,8 +53,8 @@ public class UserServiceImpl implements UserService {
     @PreAuthorize("hasAuthority('USER_UPDATE')")
     @Transactional
     public UserResponse updateProfile(UserUpdateProfileRequest request) {
-        String id = getAuthenticationId();
-        User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = securityUtils.getCurrentUser();
+
         userMapper.updateUserProfile(user, request);
         return userMapper.toUserResponse(userRepository.save(user));
     }
@@ -65,9 +63,7 @@ public class UserServiceImpl implements UserService {
     @PreAuthorize("hasAuthority('USER_UPDATE')")
     @Transactional
     public void changePassword(ChangePasswordRequest request) {
-        String id = getAuthenticationId();
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = securityUtils.getCurrentUser();
         boolean authenticated = passwordEncoder.matches(request.getCurrentPassword(), user.getPassword());
 
         if (!authenticated) {
@@ -83,11 +79,9 @@ public class UserServiceImpl implements UserService {
     public UploadAvatarResponse uploadAvatar(MultipartFile file) throws IOException {
         imageFileValidator.validate(file);
 
-        String userId = getAuthenticationId();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = securityUtils.getCurrentUser();
 
-        String folderPath = "jobtracker_ats/user/" + userId + "/avatars";
+        String folderPath = "jobtracker_ats/user/" + user.getId() + "/avatars";
 
         Map<?, ?> result = cloudinary.uploader().upload(
                 file.getInputStream(),

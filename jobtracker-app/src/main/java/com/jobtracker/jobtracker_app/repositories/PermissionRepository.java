@@ -11,5 +11,5 @@ public interface PermissionRepository extends JpaRepository<Permission, String> 
 
     boolean existsByNameIgnoreCaseAndIdNot(String name, String id);
 
-    List<Permission> findAllByIdInAndIsActiveTrue(List<String> ids);
+    List<Permission> findAllByIdInAndIsActiveTrueAndDeletedAtIsNull(List<String> ids);
 }

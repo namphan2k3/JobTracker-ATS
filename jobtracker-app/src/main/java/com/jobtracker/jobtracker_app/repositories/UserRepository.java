@@ -30,8 +30,9 @@ public interface UserRepository extends JpaRepository<User, String> {
 //            "ORDER BY u.created_at DESC", nativeQuery = true)
 
     @Query(value = "SELECT u FROM User u " +
-            "JOIN FETCH u.role r " +
+            "LEFT JOIN FETCH u.role r " +
             "WHERE u.deletedAt IS NULL " +
+            "AND u.company.id = :companyId " +
             "AND (:keyword IS NULL OR " +
             "u.email LIKE CONCAT('%', :keyword, '%') OR " +
             "u.firstName LIKE CONCAT('%', :keyword, '%') OR " +
@@ -43,6 +44,7 @@ public interface UserRepository extends JpaRepository<User, String> {
             "AND (:emailVerified IS NULL OR u.emailVerified = :emailVerified) " +
             "ORDER BY u.createdAt DESC")
     Page<User> findAllAndSearch(
+            @Param("companyId") String companyId,
             @Param("keyword") String keyword,
             @Param("roleId") String roleId,
             @Param("isActive") Boolean isActive,
@@ -55,6 +57,10 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByEmail(String email);
 
     Optional<User> findByIdAndCompany_IdAndDeletedAtIsNull(String id, String companyId);
+
+    Optional<User> findByIdAndDeletedAtIsNull(String id);
+
+    Optional<User> findByCompany_Id(String companyId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

@@ -26,7 +26,7 @@ public class SecurityUtils {
 
         String userId = authentication.getName();
 
-        return userRepository.findById(userId)
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(()-> new AppException(ErrorCode.USER_NOT_EXISTED));
     }
 }

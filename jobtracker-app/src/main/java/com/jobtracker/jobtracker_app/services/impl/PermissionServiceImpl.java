@@ -59,8 +59,9 @@ public class PermissionServiceImpl implements PermissionService {
     @PreAuthorize("hasAuthority('PERMISSION_UPDATE')")
     @Transactional
     public PermissionResponse update(String id, PermissionRequest request) {
-        Permission permission =
-                permissionRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.PERMISSION_NOT_EXISTED));
+        Permission permission = permissionRepository.findById(id)
+                .filter(p -> !p.isDeleted())
+                .orElseThrow(() -> new AppException(ErrorCode.PERMISSION_NOT_EXISTED));
         if (request.getName() != null && !request.getName().equals(permission.getName())) {
             validateNameUnique(request.getName(), id);
         }
@@ -73,8 +74,9 @@ public class PermissionServiceImpl implements PermissionService {
     @PreAuthorize("hasAuthority('PERMISSION_DELETE')")
     @Transactional
     public void delete(String id) {
-        Permission permission =
-                permissionRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.PERMISSION_NOT_EXISTED));
+        Permission permission = permissionRepository.findById(id)
+                .filter(p -> !p.isDeleted())
+                .orElseThrow(() -> new AppException(ErrorCode.PERMISSION_NOT_EXISTED));
         permission.softDelete();
         permissionRepository.save(permission);
     }
