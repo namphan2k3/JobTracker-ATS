@@ -173,7 +173,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 JobTracker ATS được thiết kế với kiến trúc multi-tenant, cho phép nhiều công ty sử dụng cùng một hệ thống với dữ liệu hoàn toàn tách biệt:
 - Mỗi công ty có dữ liệu riêng biệt (jobs, applications, users)
 - Data isolation thông qua `company_id`
-- Role-based access control (COMPANY_ADMIN, RECRUITER, HIRING_MANAGER, INTERVIEWER)
+- Role-based access control (SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER) – Global RBAC
 - Subscription được mô hình hóa bằng lookup table `subscription_plans` và bảng history `company_subscriptions` (FREE, BASIC, PRO, ENTERPRISE, ... thay đổi linh hoạt theo business)
 
 ## 🔄 Database Migration

@@ -34,7 +34,7 @@ Access token payload chứa `companyId` và `role` để backend **không cần 
 {
   "sub": "userId",
   "companyId": "c1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-  "role": "COMPANY_ADMIN",
+  "role": "ADMIN_COMPANY",
   "jti": "random-uuid",
   "iat": 1710000000,
   "exp": 1710000900
@@ -45,7 +45,7 @@ Access token payload chứa `companyId` và `role` để backend **không cần 
 |-------|-------|
 | `sub` | User ID (subject) |
 | `companyId` | Company ID của tenant — dùng cho `WHERE company_id = ?` |
-| `role` | Role name (COMPANY_ADMIN, HR, USER, INTERVIEWER, SYSTEM_ADMIN) |
+| `role` | Role name (SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER) |
 | `jti` | JWT ID — dùng cho token invalidation (logout) |
 | `iat` | Issued at (Unix timestamp) |
 | `exp` | Expiration (Unix timestamp) |
@@ -104,7 +104,7 @@ Access token payload chứa `companyId` và `role` để backend **không cần 
       "email": "admin@acme.com",
       "firstName": "John",
       "lastName": "Doe",
-      "roleName": "COMPANY_ADMIN",
+      "roleName": "ADMIN_COMPANY",
       "emailVerified": false,
       "isActive": true
     }
@@ -162,23 +162,27 @@ Access token payload chứa `companyId` và `role` để backend **không cần 
       "email": "user@example.com",
       "firstName": "John",
       "lastName": "Doe",
-      "roleName": "USER",
+      "roleName": "RECRUITER",
       "companyId": "c1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
       "companyName": "Acme Corp",
       "avatarUrl": null
     },
-    "tokens": {
-      "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "refreshToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "expiresIn": "2024-01-15T11:30:00Z",
-      "refreshExpiresIn": "2024-02-15T10:30:00Z"
-    }
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresAt": "2024-01-15T11:30:00Z"
   },
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
 
-> **Lưu ý**: `accessToken` chứa `companyId` và `role` trong payload (xem mục JWT Structure ở trên). Client có thể dùng `companyId` từ response để hiển thị tenant context.
+#### Response Headers
+```
+Set-Cookie: refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Path=/auth/refresh
+```
+
+> **Lưu ý**:
+> - `accessToken` dùng trong header `Authorization: Bearer <accessToken>` cho các API cần auth
+> - `refreshToken` được set qua **HTTP Cookie** (không trả trong body) — bảo mật hơn, tránh XSS lấy token. Chi tiết tham số cookie (HttpOnly, Secure, SameSite, Path) xem mục **Refresh Token** bên dưới
+> - `expiresAt`: Thời điểm access token hết hạn (ISO 8601)
 
 ### 3. Email Verification
 **POST** `/auth/verify-email`
@@ -249,14 +253,11 @@ Gửi lại email verification.
 ### 5. Refresh Token
 **POST** `/auth/refresh`
 
-Làm mới access token bằng refresh token.
+Làm mới access token. Refresh token được gửi qua **HTTP Cookie** (tự động gửi bởi browser khi request đến `Path=/auth/refresh`).
 
-#### Request Body
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
+#### Request
+- **Cookie**: `refreshToken` (tự động gửi kèm request nếu đã login)
+- **Body**: Không cần (hoặc empty)
 
 #### Response (200 OK)
 ```json
@@ -269,21 +270,32 @@ Làm mới access token bằng refresh token.
       "email": "user@example.com",
       "firstName": "John",
       "lastName": "Doe",
-      "roleName": "USER",
+      "roleName": "RECRUITER",
       "companyId": "c1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
       "companyName": "Acme Corp",
       "avatarUrl": null
     },
-    "tokens": {
-      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "expiresIn": "2024-01-15T11:30:00Z",
-      "refreshExpiresIn": "2024-02-15T10:30:00Z"
-    }
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresAt": "2024-01-15T11:30:00Z"
   },
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+#### Response Headers
+```
+Set-Cookie: refreshToken=<new_refresh_token>; HttpOnly; Secure; SameSite=Strict; Path=/auth/refresh
+```
+
+> **Refresh Token Cookie — Giải thích các tham số**:
+>
+> | Tham số | Giá trị | Ý nghĩa |
+> |---------|---------|---------|
+> | **HttpOnly** | — | Cookie không thể đọc bởi JavaScript (`document.cookie`). Chống **XSS** — script độc hại không lấy được refresh token |
+> | **Secure** | — | Cookie chỉ gửi qua **HTTPS**. Chống **MITM** — token không bị gửi qua kênh không mã hóa |
+> | **SameSite=Strict** | — | Cookie chỉ gửi khi request **same-site** (cùng domain). Chống **CSRF** — trang bên ngoài không thể gửi request kèm cookie |
+> | **Path=/auth/refresh** | — | Cookie chỉ gửi khi request đến `/auth/refresh`. Giảm phạm vi — token không bị gửi kèm mọi request |
+> | **Max-Age** | (optional) | Thời gian sống cookie (giây). Nên bằng thời gian refresh token expiry |
 
 ### 6. Logout
 **POST** `/auth/logout`
@@ -524,9 +536,9 @@ Authorization: Bearer <access_token>
 > - **Billing**: Chỉ tính users có `isBillable = true` (Admin, HR) vào plan limit. Employee thêm qua Add Employee không tính.
 > - **Multi-tenant**: `company_id` lấy từ JWT (user hiện tại) — không nhận từ client
 > 
-> Chỉ dành cho **COMPANY_ADMIN** hoặc **HR** (có quyền) để quản lý users trong company của mình.
+> Chỉ dành cho **ADMIN_COMPANY** hoặc **RECRUITER** (có quyền) để quản lý users trong company của mình.
 
-### 1. Get Users
+### 1. Get Users (List)
 **GET** `/admin/users`
 
 Lấy danh sách users của **company hiện tại** (multi-tenant: `company_id` từ JWT).
@@ -546,7 +558,7 @@ Query hỗ trợ `role`, `status`, `search`, `createdFrom`.
       "phone": null,
       "avatarUrl": null,
       "roleId": "34d9a2e3-1a30-4a1a-b1ad-4b6d2619f1ce",
-      "roleName": "ADMIN",
+      "roleName": "SYSTEM_ADMIN",
       "isActive": true,
       "isBillable": true,
       "emailVerified": true,
@@ -566,7 +578,40 @@ Query hỗ trợ `role`, `status`, `search`, `createdFrom`.
 }
 ```
 
-### 2. Add Employee (Non-billing, No App Access)
+### 2. Get User Details
+**GET** `/admin/users/{id}`
+
+Trả về thông tin đầy đủ của user kèm audit.
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "User retrieved successfully",
+  "data": {
+    "id": "e2019f85-4a2f-4a6a-94b8-42c9b62b34be",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+1234567890",
+    "avatarUrl": null,
+    "roleId": "34d9a2e3-1a30-4a1a-b1ad-4b6d2619f1ce",
+    "roleName": "USER",
+    "isActive": true,
+    "emailVerified": true,
+    "googleId": null,
+    "lastLoginAt": "2024-01-15T09:00:00Z",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z",
+    "createdBy": null,
+    "updatedBy": "e2019f85-4a2f-4a6a-94b8-42c9b62b34be",
+    "deletedAt": null
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 3. Add Employee (Non-billing, No App Access)
 **POST** `/admin/users/employees`
 
 Thêm nhân viên vào company **không gửi invite**, **không tạo password**. Chỉ dùng cho lưu thông tin liên hệ — dùng trong scheduling, gán interview, contact, v.v. **Không login** vào app, không tính billing.
@@ -589,7 +634,7 @@ Content-Type: application/json
 }
 ```
 
-> **Lưu ý**: Chỉ cần thông tin cần thiết (email, firstName, lastName, phone). Không có `roleId` — system tự assign.
+> **Lưu ý**: Chỉ cần thông tin cần thiết (email, firstName, lastName, phone). Không có `roleId` — Add Employee không set role vì user không login, role chỉ có giá trị cho user đã login.
 
 #### Response (201 Created)
 ```json
@@ -612,7 +657,7 @@ Content-Type: application/json
 ```
 
 > **Lưu ý**:
-> - System tự động set `isBillable = false`, `password = NULL`, `is_active = true`
+> - System tự động set `isBillable = false`, `password = NULL`, `is_active = true`, `role_id = NULL`
 > - Không gửi invite email — user không có app access
 > - Có thể gán vào interview, dùng làm contact, v.v.
 
@@ -625,7 +670,7 @@ Content-Type: application/json
 }
 ```
 
-### 3. Invite User (Create User via Invite)
+### 4. Invite User (Create User via Invite)
 **POST** `/admin/users/invite`
 
 Tạo user mới và gửi invite email. Dành cho **HR/Admin** — user sẽ set password qua link và **login vào app**. Tính billing.
@@ -657,14 +702,14 @@ Content-Type: application/json
   "firstName": "New",
   "lastName": "HR",
   "phone": "+12065551212",
-  "roleId": "34d9a2e3-1a30-4a1a-b1ad-4b6d2619f1ce",
-  "isBillable": true
+  "roleId": "34d9a2e3-1a30-4a1a-b1ad-4b6d2619f1ce"
 }
 ```
 
 > **Lưu ý**:
 > - `password` không cần trong request (user sẽ set qua invite link)
-> - `isBillable`: `true` cho ADMIN/HR (tính billing). Nhân viên chỉ cần thông tin không dùng app → dùng **Add Employee** thay vì invite
+> - `roleId` (optional): Chỉ cho phép **ADMIN_COMPANY** hoặc **RECRUITER**. Nếu null/omit → mặc định **RECRUITER**
+> - `isBillable`: **System tự set** theo role — ADMIN_COMPANY/RECRUITER → `true`. Không nhận từ client.
 > - System tự động set `email_verified = false`, `password = NULL`, `is_active = false`
 
 #### Response (201 Created)
@@ -672,24 +717,14 @@ Content-Type: application/json
 {
   "success": true,
   "message": "User invited successfully. Invitation email sent.",
-  "data": {
-    "id": "8b54b7f1-3f14-43a6-9a9a-5fefdc136d91",
-    "email": "new.user@company.com",
-    "firstName": "New",
-    "lastName": "User",
-    "phone": "+12065551212",
-    "roleName": "HR",
-    "isActive": false,
-    "emailVerified": false,
-    "isBillable": true,
-    "inviteSentAt": "2024-01-20T08:00:00Z",
-    "createdAt": "2024-01-20T08:00:00Z"
-  },
+  "data": null,
   "timestamp": "2024-01-20T08:00:00Z"
 }
 ```
 
-### 4. Accept Invite (Set Password)
+> **Lưu ý**: Invite chỉ tạo user + gửi email. Không cần trả data. Chi tiết user lấy qua **GET /admin/users** (filter email) hoặc **GET /admin/users/{id}** nếu có id.
+
+### 5. Accept Invite (Set Password)
 **POST** `/auth/accept-invite`
 
 User nhận invite email, click link, và set password. Sau khi set password, `email_verified = true` và `is_active = true`.
@@ -724,7 +759,7 @@ User nhận invite email, click link, và set password. Sau khi set password, `e
 }
 ```
 
-### 5. Resend Invite
+### 6. Resend Invite
 **POST** `/admin/users/{userId}/resend-invite`
 
 Gửi lại invite email cho user chưa verify.
@@ -745,40 +780,7 @@ Gửi lại invite email cho user chưa verify.
 }
 ```
 
-### 6. Get User Details
-**GET** `/admin/users/{id}`
-
-Trả về thông tin đầy đủ của user kèm audit.
-
-#### Response (200 OK)
-```json
-{
-  "success": true,
-  "message": "User retrieved successfully",
-  "data": {
-    "id": "e2019f85-4a2f-4a6a-94b8-42c9b62b34be",
-    "email": "user@example.com",
-    "firstName": "John",
-    "lastName": "Doe",
-    "phone": "+1234567890",
-    "avatarUrl": null,
-    "roleId": "34d9a2e3-1a30-4a1a-b1ad-4b6d2619f1ce",
-    "roleName": "USER",
-    "isActive": true,
-    "emailVerified": true,
-    "googleId": null,
-    "lastLoginAt": "2024-01-15T09:00:00Z",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-15T10:30:00Z",
-    "createdBy": null,
-    "updatedBy": "e2019f85-4a2f-4a6a-94b8-42c9b62b34be",
-    "deletedAt": null
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-### 4. Update User
+### 7. Update User
 **PUT** `/admin/users/{id}`
 
 #### Request Body
@@ -805,7 +807,7 @@ Trả về thông tin đầy đủ của user kèm audit.
     "phone": "+84123456789",
     "avatarUrl": null,
     "roleId": "781af566-48d8-4066-9fd7-78284b642df0",
-    "roleName": "HIRING_MANAGER",
+    "roleName": "RECRUITER",
     "isActive": true,
     "emailVerified": true,
     "googleId": null,
@@ -816,7 +818,7 @@ Trả về thông tin đầy đủ của user kèm audit.
 }
 ```
 
-### 5. Deactivate / Soft Delete User
+### 8. Deactivate / Soft Delete User
 **DELETE** `/admin/users/{id}`
 
 #### Response (200 OK)
@@ -829,7 +831,7 @@ Trả về thông tin đầy đủ của user kèm audit.
 }
 ```
 
-### 6. Restore User
+### 9. Restore User
 **PATCH** `/admin/users/{id}/restore`
 
 #### Response (200 OK)
@@ -1807,7 +1809,7 @@ Lấy lịch sử thay đổi status của application.
 > **Phân quyền**:
 > - **GET /companies** (list tất cả): Chỉ **SYSTEM_ADMIN**. Company Admin chỉ xem được company của mình qua **GET /companies/{id}** (với id từ JWT/context).
 > - Company được tạo duy nhất qua **POST /auth/register** (self-signup: company + admin cùng lúc). Không có endpoint POST /companies.
-> - **GET/PUT/DELETE /companies/{id}**: SYSTEM_ADMIN (bất kỳ company) hoặc COMPANY_ADMIN (chỉ company của mình).
+> - **GET/PUT/DELETE /companies/{id}**: SYSTEM_ADMIN (bất kỳ company) hoặc ADMIN_COMPANY (chỉ company của mình).
 > - **PATCH /companies/{id}/verify**: Chỉ **SYSTEM_ADMIN** — set trạng thái verified của company.
 >
 > **📋 Tiêu chí Verified (cho Admin)**  
@@ -2647,7 +2649,7 @@ Authorization: Bearer <access_token>
 ### 11. Create Application Status
 **POST** `/admin/application-statuses`
 
-Tạo application status **mới cho company hiện tại** (chỉ dành cho COMPANY_ADMIN/HR Admin).
+Tạo application status **mới cho company hiện tại** (chỉ dành cho ADMIN_COMPANY/RECRUITER).
 
 #### Request Headers
 ```
@@ -2855,7 +2857,7 @@ Lấy chi tiết template (bao gồm `htmlContent`).
 #### 3. Create Email Template
 **POST** `/admin/email-templates`
 
-Tạo template mới cho company (override global). Chỉ COMPANY_ADMIN/HR Admin.
+Tạo template mới cho company (override global). Chỉ ADMIN_COMPANY/RECRUITER.
 
 ##### Request Body
 ```json
@@ -3119,7 +3121,7 @@ Resend thủ công email FAILED (reset `status = PENDING`, `retry_count = 0`). S
 
 ## 🔐 RBAC & Permission APIs
 
-> ⚠️ Các endpoint này yêu cầu quyền `ADMIN`.
+> ⚠️ Các endpoint này yêu cầu quyền `SYSTEM_ADMIN` hoặc `ADMIN_COMPANY` (tùy scope).
 
 ### 1. Get Roles
 **GET** `/admin/roles`
@@ -3140,7 +3142,7 @@ Authorization: Bearer <access_token>
   "data": [
     {
       "id": "34d9a2e3-1a30-4a1a-b1ad-4b6d2619f1ce",
-      "name": "ADMIN",
+      "name": "SYSTEM_ADMIN",
       "description": "Administrator with full system access",
       "isActive": true,
       "createdAt": "2024-01-01T00:00:00Z",
@@ -3168,7 +3170,7 @@ Content-Type: application/json
 #### Request Body
 ```json
 {
-  "name": "HIRING_MANAGER",
+  "name": "RECRUITER",
   "description": "Limited admin role for managing job data",
   "isActive": true
 }
@@ -3181,7 +3183,7 @@ Content-Type: application/json
   "message": "Role created successfully",
   "data": {
     "id": "781af566-48d8-4066-9fd7-78284b642df0",
-    "name": "HIRING_MANAGER",
+    "name": "RECRUITER",
     "description": "Limited admin role for managing job data",
     "isActive": true,
     "createdAt": "2024-01-15T10:30:00Z"
@@ -3836,7 +3838,7 @@ Authorization: Bearer <access_token>
 ```
 
 > **Lưu ý**:
-> - `interviewerIds`: Array các `user_id` với role = `INTERVIEWER` (bắt buộc, ít nhất 1 interviewer)
+> - `interviewerIds`: Array các `user_id` với role = `RECRUITER` (hoặc user có quyền interview, bắt buộc ít nhất 1 interviewer)
 > - `primaryInterviewerId`: Interviewer chính (optional, nếu không set thì lấy interviewer đầu tiên)
 > - **Status khi create luôn = `SCHEDULED`**, client **không gửi** field `status` trong request.
 
@@ -4475,7 +4477,7 @@ Authorization: Bearer <access_token>
 ### 1. Get Audit Logs
 **GET** `/audit-logs`
 
-> ⚠️ Chỉ dành cho ADMIN.
+> ⚠️ Chỉ dành cho SYSTEM_ADMIN.
 
 Lấy log hành động của người dùng/system để phục vụ kiểm tra.
 

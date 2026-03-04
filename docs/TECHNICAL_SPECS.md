@@ -489,7 +489,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     }
     
     private User createNewUser(OAuth2UserInfo userInfo) {
-        Role userRole = roleRepository.findByName("RECRUITER") // Default role cho ATS
+        Role userRole = roleRepository.findByName(SystemRole.RECRUITER.name()) // Default role cho ATS
             .orElseThrow(() -> new RuntimeException("Default role not found"));
         
         // Tạo hoặc lấy company mặc định (hoặc yêu cầu user chọn company)
@@ -1736,7 +1736,7 @@ public class Role extends BaseFullAuditEntity {
     private String id;
     
     @Column(nullable = false, unique = true)
-    private String name; // COMPANY_ADMIN, RECRUITER, HIRING_MANAGER, INTERVIEWER
+    private String name; // SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER (Global RBAC)
     
     private String description;
     
@@ -2015,7 +2015,7 @@ public class InterviewInterviewer extends BasePartialAuditEntity {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "interviewer_id", nullable = false)
-    private User interviewer; // User with role = INTERVIEWER
+    private User interviewer; // User with role = RECRUITER (hoặc có quyền interview)
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)

@@ -269,7 +269,7 @@ CREATE TABLE users (
     phone VARCHAR(20) COMMENT 'Số điện thoại',
     avatar_url VARCHAR(500) COMMENT 'URL ảnh đại diện',
     avatar_public_id VARCHAR(255) COMMENT 'Cloudinary public ID ảnh đại diện',
-    role_id VARCHAR(36) NOT NULL COMMENT 'UUID vai trò người dùng',
+    role_id VARCHAR(36) NULL COMMENT 'UUID vai trò (NULL cho Add Employee - user không login, role chỉ dùng cho user đã login)',
     is_active BOOLEAN DEFAULT TRUE COMMENT 'Trạng thái hoạt động',
     email_verified BOOLEAN DEFAULT FALSE COMMENT 'Email đã xác thực',
     is_billable BOOLEAN DEFAULT TRUE COMMENT 'Có tính vào quota plan hay không (Admin/HR = true, Interviewer = false)',
@@ -650,7 +650,7 @@ CREATE TABLE comments (
 > ** MULTIPLE INTERVIEWERS**: Một interview có thể có nhiều interviewers (many-to-many qua bảng `interview_interviewers`).
 > 
 > ** SCHEDULE VALIDATION**: Validate trùng lịch cho từng interviewer (không phải cho interview):
-> - Một interviewer (user với role = INTERVIEWER) không thể có 2 interviews cùng thời gian (trùng `scheduled_date` và `duration_minutes`)
+> - Một interviewer (user với role = RECRUITER) không thể có 2 interviews cùng thời gian (trùng `scheduled_date` và `duration_minutes`)
 > - Validate khi tạo/cập nhật interview: Check tất cả interviewers trong `interview_interviewers` table
 > - Chỉ validate cho interviews có status = `SCHEDULED` hoặc `RESCHEDULED`
 > - Validate overlap: Nếu interview A từ 10:00-11:00 và interview B từ 10:30-11:30 → Trùng lịch (overlap)
@@ -1247,14 +1247,21 @@ Skills (1) ──── (N) Job_Skills
 
 ### Initial Lookup Data
 
-#### Roles Data (ATS Roles)
+#### Roles Data (Global RBAC – Mô hình 1)
+
+> **roles**, **permissions**, **role_permissions** là global. Mỗi company chỉ assign role cho user. Company A và B dùng cùng role.
+
+| Role | Scope | Mô tả |
+|------|-------|-------|
+| SYSTEM_ADMIN | Global | System administrator – quản lý toàn bộ companies |
+| ADMIN_COMPANY | Per company | Company administrator (owner, self-signup) – full control trong company |
+| RECRUITER | Per company | Recruiter – quản lý jobs, applications, interviews |
+
 ```sql
 INSERT INTO roles (name, description) VALUES
-('COMPANY_ADMIN', 'Company Administrator - Full control within company'),
-('RECRUITER', 'Recruiter - Manage jobs and applications'),
-('HIRING_MANAGER', 'Hiring Manager - View and comment on applications'),
-('INTERVIEWER', 'Interviewer - Schedule and conduct interviews'),
-('SYSTEM_ADMIN', 'System Admin - Manage all companies');
+('SYSTEM_ADMIN', 'System Administrator - Global, manage all companies'),
+('ADMIN_COMPANY', 'Company Administrator - Full control within company (owner)'),
+('RECRUITER', 'Recruiter - Manage jobs and applications per company');
 ```
 
 #### Permissions Data (ATS Permissions)
@@ -1644,9 +1651,8 @@ DELETE FROM notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 
 #### **1. Admin Management Requirements (chỉ cho roles và permissions):**
 ```sql
--- Admin có thể thêm role mới
-INSERT INTO roles (name, description) 
-VALUES ('INTERVIEWER', 'Interviewer role');
+-- Admin có thể thêm role mới (Global RBAC: SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER)
+-- INSERT INTO roles (name, description) VALUES ('ROLE_NAME', 'Description');
 
 -- Admin có thể xóa role (soft delete)
 UPDATE roles 
@@ -1729,12 +1735,26 @@ WHERE id IN (1, 2, 3) AND deleted_at IS NOT NULL;
 
 ### **1. ROLE-BASED ACCESS CONTROL (RBAC)**
 
+#### **1.0. Global RBAC – Mô hình 1 (phổ biến cho ATS SaaS)**
+
+> **Cách hoạt động**: `roles`, `permissions`, `role_permissions` là **global**. Mỗi company chỉ **assign role** cho user. Company A và Company B dùng cùng role.
+
+| Role | Scope | Mô tả |
+|------|-------|-------|
+| **SYSTEM_ADMIN** | Global | System administrator – quản lý toàn bộ companies |
+| **ADMIN_COMPANY** | Per company | Company administrator (owner, self-signup) – full control trong company |
+| **RECRUITER** | Per company | Recruiter – quản lý jobs, applications, interviews |
+
+**Ưu điểm**: Đơn giản, dễ maintain, không bị explosion dữ liệu, phù hợp 95% ATS SaaS (Greenhouse, Lever, Workable).
+
+**Nhược điểm**: Company không tự tạo custom role, không customize permission.
+
 #### **1.1. Roles ↔ Users (One-to-Many)**
 ```sql
 -- Quan hệ: 1 role có thể có nhiều users
 users.role_id → roles.id
 ```
-- **Mục đích**: Phân quyền người dùng (ADMIN, USER, MANAGER)
+- **Mục đích**: Phân quyền người dùng (SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER)
 - **Cardinality**: 1:N (1 role → N users)
 - **Foreign Key**: `users.role_id` → `roles.id`
 - **Constraint**: `ON DELETE RESTRICT` (không cho xóa role nếu còn users)
@@ -1759,7 +1779,7 @@ CREATE TABLE role_permissions (
 ```
 - **Mục đích**: Phân quyền chi tiết (CREATE, READ, UPDATE, DELETE)
 - **Cardinality**: M:N (1 role → N permissions, 1 permission → N roles)
-- **Ví dụ**: ADMIN role có tất cả permissions, USER role chỉ có READ permissions
+- **Ví dụ**: SYSTEM_ADMIN có full permissions, ADMIN_COMPANY có company-level permissions, RECRUITER có recruiter permissions
 
 ### 2. Job management relationships
 
@@ -1939,7 +1959,7 @@ interviews.company_id → companies.id
 ```sql
 -- Quan hệ: 1 interview có thể có nhiều interviewers, 1 interviewer có thể có nhiều interviews
 interview_interviewers.interview_id → interviews.id
-interview_interviewers.interviewer_id → users.id (role = INTERVIEWER)
+interview_interviewers.interviewer_id → users.id (role = RECRUITER)
 ```
 - **Mục đích**: Support nhiều interviewers cho 1 interview và validate trùng lịch
 - **Cardinality**: M:N (1 interview → N interviewers, 1 interviewer → N interviews)
@@ -2069,7 +2089,7 @@ attachments.user_id → users.id
 - **applications** (CORE ATS) ↔ **interviews**, **comments**, **attachments**, **application_status_history**
 
 ### **Lookup Tables (chỉ giữ RBAC):**
-- **roles** ↔ **users** (COMPANY_ADMIN, RECRUITER, HIRING_MANAGER, INTERVIEWER) - **GIỮ TABLE**
+- **roles** ↔ **users** (SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER) - **GIỮ TABLE**
 - **permissions** ↔ **roles** (JOB_CREATE, APPLICATION_VIEW, etc.) - **GIỮ TABLE**
 
 ### **Giá trị cố định (enum ứng dụng, lưu dạng VARCHAR):**

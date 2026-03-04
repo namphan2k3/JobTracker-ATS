@@ -77,7 +77,7 @@ JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic
 - **Invite-based User Creation**: Admin tạo user → Gửi invite email → User set password
 - **CORS**: Chia sẻ tài nguyên đa nguồn gốc
 - **Bảo mật Multi-Tenant**: Cô lập dữ liệu theo công ty với `@Filter` và lọc `company_id`
-- **RBAC**: Kiểm soát truy cập dựa trên vai trò (COMPANY_ADMIN, RECRUITER, HIRING_MANAGER, INTERVIEWER)
+- **RBAC**: Kiểm soát truy cập dựa trên vai trò (SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER) – Global RBAC
 
 #### Validation & Processing
 - **Jakarta Validation**: Xác thực Bean (JSR-380)
@@ -891,7 +891,7 @@ public class ApplicationService {
 - **Password Hashing**: BCrypt
 
 ### Phân quyền
-- **Truy cập dựa trên vai trò**: Các vai trò COMPANY_ADMIN, RECRUITER, HIRING_MANAGER, INTERVIEWER
+- **Truy cập dựa trên vai trò**: Các vai trò SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER (Global RBAC)
 - **Truy cập dựa trên quyền**: Quyền chi tiết (JOB_CREATE, APPLICATION_VIEW, etc.)
 - **Bảo mật cấp phương thức**: @PreAuthorize với company context
 - **Bảo mật cấp tài nguyên**: Cô lập dữ liệu multi-tenant (tự động lọc `company_id`)

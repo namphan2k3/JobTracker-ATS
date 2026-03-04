@@ -26,7 +26,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 > - `password_reset_tokens`: Forgot/Reset password
 
 - **Company self-signup** (`POST /auth/register`):
-  - Tạo `company` mới + user `COMPANY_ADMIN` (`users`).
+  - Tạo `company` mới + user `ADMIN_COMPANY` (`users`).
   - `email_verified = false`, gửi email verify.
   - Tạo record trong `email_verification_tokens`:
     - Generate token random → lưu `token`. Gửi token qua email.
