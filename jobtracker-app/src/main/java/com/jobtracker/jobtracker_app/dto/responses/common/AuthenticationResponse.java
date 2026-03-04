@@ -5,6 +5,8 @@ import com.jobtracker.jobtracker_app.dto.responses.user.UserInfo;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.util.Date;
+
 @Getter
 @Builder
 @NoArgsConstructor
@@ -12,5 +14,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AuthenticationResponse {
     UserInfo user;
-    TokenInfo tokens;
+    String accessToken;
+    Date expiresAt;
 }

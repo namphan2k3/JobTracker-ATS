@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import com.jobtracker.jobtracker_app.dto.requests.*;
 import com.jobtracker.jobtracker_app.dto.responses.*;
 import com.jobtracker.jobtracker_app.entities.*;
+import com.jobtracker.jobtracker_app.enums.SystemRole;
 import com.jobtracker.jobtracker_app.mappers.UserMapper;
 import com.jobtracker.jobtracker_app.repositories.CompanyRepository;
 import com.jobtracker.jobtracker_app.repositories.RoleRepository;
@@ -27,6 +28,7 @@ import com.jobtracker.jobtracker_app.exceptions.ErrorCode;
 import com.jobtracker.jobtracker_app.repositories.EmailVerificationTokenRepository;
 import com.jobtracker.jobtracker_app.repositories.InvalidatedRepository;
 import com.jobtracker.jobtracker_app.repositories.PasswordResetTokenRepository;
+import com.jobtracker.jobtracker_app.repositories.UserInvitationRepository;
 import com.jobtracker.jobtracker_app.repositories.UserRepository;
 import com.jobtracker.jobtracker_app.services.AuthService;
 import com.jobtracker.jobtracker_app.services.EmailService;
@@ -55,9 +57,10 @@ public class AuthServiceImpl implements AuthService {
     EmailVerificationTokenRepository emailVerificationTokenRepository;
     PasswordResetTokenRepository passwordResetTokenRepository;
     EmailService emailService;
+    UserInvitationRepository userInvitationRepository;
 
-    private static final String CACHE_PREFIX = "refresh_token:";
-    private static final String COMPANY_ADMIN_ROLE = "COMPANY_ADMIN";
+    private static final String REFRESH_TOKEN_PREFIX = "refresh_token:";
+    private static final String USER_REFRESH_TOKENS_PREFIX = "user_refresh_tokens:";
 
     @NonFinal
     @Value("${jwt.signer-key}")
@@ -93,7 +96,8 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         company = companyRepository.save(company);
 
-        Role companyAdminRole = roleRepository.findByName(COMPANY_ADMIN_ROLE)
+        Role adminCompanyRole = roleRepository.findByName(SystemRole.ADMIN_COMPANY.name())
+                .filter(r -> Boolean.TRUE.equals(r.getIsActive()) && !r.isDeleted())
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
 
         User user = User.builder()
@@ -102,7 +106,7 @@ public class AuthServiceImpl implements AuthService {
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .company(company)
-                .role(companyAdminRole)
+                .role(adminCompanyRole)
                 .emailVerified(false)
                 .isActive(true)
                 .isBillable(true)
@@ -135,10 +139,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthenticationResponse login(AuthenticationRequest request) throws JOSEException {
+    public AuthResult login(AuthenticationRequest request) throws JOSEException {
         User user = userRepository
                 .findByEmail(request.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (user.getPassword() == null || user.getRole() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
 
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
@@ -150,11 +158,11 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
 
-        AuthenticationResponse authenticationResponse = authenticationResponse(user);
+        AuthResult authResult = authResult(user);
 
-        checkAndCreateRefreshToken(user.getId(), authenticationResponse.getTokens().getRefreshToken());
+        storeRefreshToken(user.getId(), authResult.getTokenInfo().getRefreshToken());
 
-        return authenticationResponse;
+        return authResult;
     }
 
     @Override
@@ -198,33 +206,51 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthenticationResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
-        var signedJwt = verifyToken(request.getRefreshToken());
+    public AuthResult refreshToken(String refreshToken) throws ParseException, JOSEException {
+        var signedJwt = verifyToken(refreshToken);
         String sub = signedJwt.getJWTClaimsSet().getSubject();
+        String jti = signedJwt.getJWTClaimsSet().getJWTID();
+
+        String key = REFRESH_TOKEN_PREFIX + jti;
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(key))) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
 
         User user = userRepository.findById(sub).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        AuthenticationResponse authenticationResponse = authenticationResponse(user);
+        revokeRefreshToken(jti, sub);
+        AuthResult authResult = authResult(user);
+        storeRefreshToken(user.getId(), authResult.getTokenInfo().getRefreshToken());
 
-        checkAndCreateRefreshToken(user.getId(), authenticationResponse.getTokens().getRefreshToken());
-
-        return authenticationResponse;
+        return authResult;
     }
 
     @Override
     @Transactional
-    public void logout(LogoutRequest request) throws ParseException, JOSEException {
+    public void logout(LogoutRequest request, String refreshTokenFromCookie) throws ParseException, JOSEException {
         var signedJwt = SignedJWT.parse(request.getAccessToken());
-
+        String jti = signedJwt.getJWTClaimsSet().getJWTID();
         String sub = signedJwt.getJWTClaimsSet().getSubject();
-        String jit = signedJwt.getJWTClaimsSet().getJWTID();
         Date expiryTime = signedJwt.getJWTClaimsSet().getExpirationTime();
-        String key = CACHE_PREFIX + sub;
 
         InvalidatedToken invalidatedToken =
-                InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
+                InvalidatedToken.builder().id(jti).expiryTime(expiryTime).build();
         invalidatedRepository.save(invalidatedToken);
-        redisTemplate.delete(key);
+
+        if (refreshTokenFromCookie != null && !refreshTokenFromCookie.isBlank()) {
+            try {
+                var refreshJwt = SignedJWT.parse(refreshTokenFromCookie);
+                String refreshJti = refreshJwt.getJWTClaimsSet().getJWTID();
+                String refreshSub = refreshJwt.getJWTClaimsSet().getSubject();
+                revokeRefreshToken(refreshJti, refreshSub);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void revokeRefreshToken(String jti, String userId) {
+        redisTemplate.delete(REFRESH_TOKEN_PREFIX + jti);
+        redisTemplate.opsForSet().remove(USER_REFRESH_TOKENS_PREFIX + userId, jti);
     }
 
     @Override
@@ -256,6 +282,33 @@ public class AuthServiceImpl implements AuthService {
 
         token.setUsedAt(LocalDateTime.now());
         passwordResetTokenRepository.save(token);
+    }
+
+    @Override
+    @Transactional
+    public AcceptInviteResponse acceptInvite(AcceptInviteRequest request) {
+        if (request.getToken() == null || request.getToken().isBlank()
+                || request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new AppException(ErrorCode.INVALID_INVITE_TOKEN);
+        }
+        UserInvitation invitation = userInvitationRepository
+                .findValidByToken(request.getToken(), LocalDateTime.now())
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_INVITE_TOKEN));
+
+        User user = invitation.getUser();
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setEmailVerified(true);
+        user.setIsActive(true);
+        userRepository.save(user);
+
+        invitation.setUsedAt(LocalDateTime.now());
+        userInvitationRepository.save(invitation);
+
+        return AcceptInviteResponse.builder()
+                .email(user.getEmail())
+                .emailVerified(true)
+                .isActive(true)
+                .build();
     }
 
     private SignedJWT verifyToken(String token) throws JOSEException, ParseException {
@@ -300,15 +353,19 @@ public class AuthServiceImpl implements AuthService {
         return jwsObject.serialize();
     }
 
-    private AuthenticationResponse authenticationResponse(User user) throws JOSEException {
+    private AuthResult authResult(User user) throws JOSEException {
+        if (user.getRole() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
         String accessToken = generateToken(user, false);
         String refreshToken = generateToken(user, true);
 
         TokenInfo tokenInfo = TokenInfo.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .expiresIn(Date.from(Instant.now().plusSeconds(validDuration)))
-                .refreshExpiresIn(Date.from(Instant.now().plusSeconds(refreshableDuration)))
+                .expiresAt(Date.from(Instant.now().plusSeconds(validDuration)))
+                .refreshExpiresAt(Date.from(Instant.now().plusSeconds(refreshableDuration)))
+                .refreshMaxAge(refreshableDuration)
                 .build();
 
         UserInfo userInfo = UserInfo.builder()
@@ -322,20 +379,24 @@ public class AuthServiceImpl implements AuthService {
                 .companyName(user.getCompany().getName())
                 .build();
 
-        return AuthenticationResponse.builder()
+        return AuthResult.builder()
                 .user(userInfo)
-                .tokens(tokenInfo)
+                .tokenInfo(tokenInfo)
                 .build();
     }
 
-    private void checkAndCreateRefreshToken(String sub, String refreshToken) {
-        String key = CACHE_PREFIX + sub;
+    private void storeRefreshToken(String userId, String refreshToken) {
+        try {
+            var signedJwt = SignedJWT.parse(refreshToken);
+            String jti = signedJwt.getJWTClaimsSet().getJWTID();
 
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
-            redisTemplate.delete(key);
+            String key = REFRESH_TOKEN_PREFIX + jti;
+            redisTemplate.opsForValue().set(key, userId, refreshableDuration, TimeUnit.SECONDS);
+            redisTemplate.opsForSet().add(USER_REFRESH_TOKENS_PREFIX + userId, jti);
+            redisTemplate.expire(USER_REFRESH_TOKENS_PREFIX + userId, refreshableDuration, TimeUnit.SECONDS);
+        } catch (ParseException e) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-
-        redisTemplate.opsForValue().set(key, refreshToken, refreshableDuration, TimeUnit.SECONDS);
     }
 
 
@@ -345,7 +406,7 @@ public class AuthServiceImpl implements AuthService {
                 .user(user)
                 .company(user.getCompany())
                 .token(UUID.randomUUID().toString())
-                .expiresAt(now.plusHours(VERIFICATION_TOKEN_EXPIRY_HOURS))
+                .expiresAt(now.plusHours(verificationTokenExpiryHours))
                 .sentAt(now)
                 .build();
         return emailVerificationTokenRepository.save(token);

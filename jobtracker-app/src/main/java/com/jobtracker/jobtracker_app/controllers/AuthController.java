@@ -1,26 +1,29 @@
 package com.jobtracker.jobtracker_app.controllers;
 
 import java.text.ParseException;
+import java.time.Duration;
 
+import com.jobtracker.jobtracker_app.dto.requests.AcceptInviteRequest;
 import com.jobtracker.jobtracker_app.dto.requests.EmailVerifyRequest;
 import com.jobtracker.jobtracker_app.dto.requests.ForgotPasswordRequest;
 import com.jobtracker.jobtracker_app.dto.requests.RegisterRequest;
 import com.jobtracker.jobtracker_app.dto.requests.ResendEmailVerifyRequest;
 import com.jobtracker.jobtracker_app.dto.requests.ResetPasswordRequest;
+import com.jobtracker.jobtracker_app.dto.responses.AcceptInviteResponse;
+import com.jobtracker.jobtracker_app.dto.responses.AuthResult;
 import com.jobtracker.jobtracker_app.dto.responses.CompanySelfSignupResponse;
 import com.jobtracker.jobtracker_app.dto.responses.EmailVerifyResponse;
 import com.jobtracker.jobtracker_app.utils.LocalizationUtils;
 import com.jobtracker.jobtracker_app.utils.MessageKeys;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.web.bind.annotation.*;
 
 import com.jobtracker.jobtracker_app.dto.requests.AuthenticationRequest;
 import com.jobtracker.jobtracker_app.dto.requests.LogoutRequest;
-import com.jobtracker.jobtracker_app.dto.requests.RefreshRequest;
 import com.jobtracker.jobtracker_app.dto.responses.common.ApiResponse;
 import com.jobtracker.jobtracker_app.dto.responses.common.AuthenticationResponse;
 import com.jobtracker.jobtracker_app.services.AuthService;
@@ -47,25 +50,80 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    ApiResponse<AuthenticationResponse> login(@RequestBody @Valid AuthenticationRequest request) throws JOSEException {
+    ApiResponse<AuthenticationResponse> login(@RequestBody @Valid AuthenticationRequest request,
+                                              HttpServletResponse response)
+            throws JOSEException {
+
+        AuthResult authResult = authService.login(request);
+
+        ResponseCookie responseCookie = ResponseCookie
+                .from("refreshToken", authResult.getTokenInfo().getRefreshToken())
+                .httpOnly(true)
+                .secure(true)
+                .path("/auth/refresh")
+                .sameSite("Strict")
+                .maxAge(Duration.ofSeconds(authResult.getTokenInfo().getRefreshMaxAge()))
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, responseCookie.toString());
+
+        AuthenticationResponse authenticationResponse = AuthenticationResponse.builder()
+                .user(authResult.getUser())
+                .accessToken(authResult.getTokenInfo().getAccessToken())
+                .expiresAt(authResult.getTokenInfo().getExpiresAt())
+                .build();
+
         return ApiResponse.<AuthenticationResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.USER_LOGIN_SUCCESS))
-                .data(authService.login(request))
+                .data(authenticationResponse)
                 .build();
     }
 
     @PostMapping("/refresh")
-    ApiResponse<AuthenticationResponse> refreshToken(@RequestBody @Valid RefreshRequest request)
+    ApiResponse<AuthenticationResponse> refreshToken( @CookieValue("refreshToken") String refreshToken,
+                                                      HttpServletResponse response)
             throws ParseException, JOSEException {
+
+        AuthResult authResult = authService.refreshToken(refreshToken);
+
+        ResponseCookie responseCookie = ResponseCookie
+                .from("refreshToken", authResult.getTokenInfo().getRefreshToken())
+                .httpOnly(true)
+                .secure(true)
+                .path("/auth/refresh")
+                .sameSite("Strict")
+                .maxAge(Duration.ofSeconds(authResult.getTokenInfo().getRefreshMaxAge()))
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, responseCookie.toString());
+
+        AuthenticationResponse authenticationResponse = AuthenticationResponse.builder()
+                .user(authResult.getUser())
+                .accessToken(authResult.getTokenInfo().getAccessToken())
+                .expiresAt(authResult.getTokenInfo().getExpiresAt())
+                .build();
+
         return ApiResponse.<AuthenticationResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.USER_REFRESH_SUCCESS))
-                .data(authService.refreshToken(request))
+                .data(authenticationResponse)
                 .build();
     }
 
     @PostMapping("/logout")
-    ApiResponse<Void> logout(@RequestBody @Valid LogoutRequest request) throws ParseException, JOSEException {
-        authService.logout(request);
+    ApiResponse<Void> logout(@RequestBody @Valid LogoutRequest request,
+                             @CookieValue(name = "refreshToken", required = false) String refreshToken,
+                             HttpServletResponse response) throws ParseException, JOSEException {
+        authService.logout(request, refreshToken);
+
+        ResponseCookie clearCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/auth/refresh")
+                .sameSite("Strict")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, clearCookie.toString());
+
         return ApiResponse.<Void>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.USER_LOGOUT_SUCCESS))
                 .build();
@@ -100,6 +158,14 @@ public class AuthController {
         authService.resetPassword(request);
         return ApiResponse.<Void>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.PASSWORD_RESET_SUCCESS))
+                .build();
+    }
+
+    @PostMapping("/accept-invite")
+    ApiResponse<AcceptInviteResponse> acceptInvite(@RequestBody @Valid AcceptInviteRequest request) {
+        return ApiResponse.<AcceptInviteResponse>builder()
+                .message(localizationUtils.getLocalizedMessage(MessageKeys.INVITE_ACCEPTED_SUCCESS))
+                .data(authService.acceptInvite(request))
                 .build();
     }
 }

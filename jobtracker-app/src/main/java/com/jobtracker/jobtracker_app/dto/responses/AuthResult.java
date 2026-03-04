@@ -1,7 +1,6 @@
 package com.jobtracker.jobtracker_app.dto.responses;
 
-import java.util.Date;
-
+import com.jobtracker.jobtracker_app.dto.responses.user.UserInfo;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -10,10 +9,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class TokenInfo {
-    String accessToken;
-    String refreshToken;
-    Date expiresAt;
-    Date refreshExpiresAt;
-    long refreshMaxAge;
+public class AuthResult {
+    UserInfo user;
+    TokenInfo tokenInfo;
 }
