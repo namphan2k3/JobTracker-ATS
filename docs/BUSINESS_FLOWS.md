@@ -640,6 +640,19 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 ---
 
+**📧 0️⃣ User & Auth Emails**
+
+| Template code | allowed_system_vars | allowed_manual_vars |
+|---------------|---------------------|----------------------|
+| **USER_INVITE** / **USER_INVITE_RESEND** | `company_name`, `user_email`, `user_first_name`, `user_last_name`, `user_name`, `invite_link` | — |
+| **EMAIL_VERIFICATION** / **EMAIL_VERIFICATION_RESEND** | `company_name`, `user_email`, `user_first_name`, `user_last_name`, `user_name`, `verification_link` | — |
+| **PASSWORD_RESET** | `company_name`, `user_email`, `user_first_name`, `user_last_name`, `user_name`, `reset_link` | — |
+
+- **EmailContext** cho User/Auth: `userId`, `companyId`, `inviteToken` / `verificationToken` / `resetToken`.
+- **Resolvers**: `InviteLinkResolver`, `VerificationLinkResolver`, `ResetLinkResolver`, `UserEmailResolver`, `UserFirstNameResolver`, `UserLastNameResolver`, `UserNameResolver`.
+
+---
+
 **📨 1️⃣ Application Emails**
 
 | Template code | allowed_system_vars | allowed_manual_vars |
@@ -680,7 +693,8 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 - **SystemVariable** (whitelist cứng – enum `SystemVariable`):
   - Parse `{{var}}` → nếu trong whitelist → auto classify system.
-  - `company_name`, `hr_name`, `candidate_name`, `job_title`, `application_status`, `application_link`, `interview_time`, `interview_location`, `meeting_link`.
+  - **User/Auth**: `company_name`, `user_email`, `user_first_name`, `user_last_name`, `user_name`, `invite_link`, `verification_link`, `reset_link`.
+  - **Application Workflow**: `hr_name`, `candidate_name`, `job_title`, `application_status`, `application_link`, `interview_time`, `interview_location`, `meeting_link`.
 
 - **ManualVariable** (whitelist cứng – enum `ManualVariable`):
   - `offer_salary`, `offer_start_date`, `offer_expire_date`, `custom_message`.
