@@ -183,6 +183,7 @@ Set-Cookie: refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secu
 > - `accessToken` dùng trong header `Authorization: Bearer <accessToken>` cho các API cần auth
 > - `refreshToken` được set qua **HTTP Cookie** (không trả trong body) — bảo mật hơn, tránh XSS lấy token. Chi tiết tham số cookie (HttpOnly, Secure, SameSite, Path) xem mục **Refresh Token** bên dưới
 > - `expiresAt`: Thời điểm access token hết hạn (ISO 8601)
+> - **Multi-device**: Mỗi lần login tạo session mới. User có thể đăng nhập trên nhiều thiết bị đồng thời (mobile, desktop, tablet...)
 
 ### 3. Email Verification
 **POST** `/auth/verify-email`
@@ -255,6 +256,8 @@ Gửi lại email verification.
 
 Làm mới access token. Refresh token được gửi qua **HTTP Cookie** (tự động gửi bởi browser khi request đến `Path=/auth/refresh`).
 
+> **Multi-device**: Mỗi device có refresh token riêng (lưu trong Redis theo `jti`). Refresh chỉ validate và rotate token của device hiện tại, không ảnh hưởng các device khác.
+
 #### Request
 - **Cookie**: `refreshToken` (tự động gửi kèm request nếu đã login)
 - **Body**: Không cần (hoặc empty)
@@ -300,20 +303,19 @@ Set-Cookie: refreshToken=<new_refresh_token>; HttpOnly; Secure; SameSite=Strict;
 ### 6. Logout
 **POST** `/auth/logout`
 
-Đăng xuất và vô hiệu hóa token.
+Đăng xuất **chỉ device hiện tại** và vô hiệu hóa token.
 
+> **Multi-device**: Logout chỉ invalidate session của device gọi API (dựa vào `refreshToken` trong cookie). Các device khác vẫn đăng nhập bình thường.
+>
 > **Token Invalidation Flow**:
-> 1. System parse access token từ Authorization header
-> 2. System lấy JWT ID (`jti`) và `expiry_time` từ token claims
-> 3. System lưu vào bảng `invalidated_token` với `id = jti` và `expiry_time = token expiry`
-> 4. System xóa refresh token từ Redis cache (nếu có)
-> 5. Token đã bị invalidate → Không thể dùng lại cho các requests sau
-> 
-> **Token Verification**: Khi verify token trong authentication filter, system sẽ check xem `jti` có trong `invalidated_token` không. Nếu có → Reject request.
+> 1. System parse access token từ request body → lưu `jti` vào `invalidated_token` (access token không dùng được nữa)
+> 2. System parse refresh token từ cookie → xóa `refresh_token:{jti}` khỏi Redis (device này không refresh được nữa)
+> 3. Response set cookie `refreshToken` với `Max-Age=0` để browser xóa cookie
 
 #### Request Headers
 ```
 Authorization: Bearer <access_token>
+Cookie: refreshToken=... (tự động gửi bởi browser)
 ```
 
 #### Request Body
@@ -332,6 +334,12 @@ Authorization: Bearer <access_token>
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+#### Response Headers
+```
+Set-Cookie: refreshToken=; Max-Age=0; Path=/auth/refresh; HttpOnly; Secure; SameSite=Strict
+```
+(Xóa cookie refreshToken trên browser)
 
 ### 7. Forgot Password
 **POST** `/auth/forgot-password`

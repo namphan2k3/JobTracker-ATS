@@ -60,14 +60,29 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
        - Tạo token mới trong `user_invitations` (hoặc update record cũ nếu chưa dùng).
        - Gửi lại email invite với token mới.
 
-- **Login / refresh / logout**:
-  - `POST /auth/login` → trả `accessToken` + `refreshToken`, tạo `user_sessions` record.
-  - `POST /auth/refresh` → cấp token mới, cập nhật session.
-  - `POST /auth/logout`:
-    - Parse JWT, lấy `jit` + `expiry_time`.
-    - Ghi vào `invalidated_token` (`id = jit`).
-    - Xóa refresh token khỏi cache.
-    - Mọi request sau đó có `jit` này bị reject.
+- **Login** (`POST /auth/login`):
+  - Input: `email`, `password`.
+  - Validate: user tồn tại, `password` đúng, `email_verified = true`, `role != null`.
+  - Generate: `accessToken` (JWT, ngắn hạn) + `refreshToken` (JWT, dài hạn).
+  - Response body: `user`, `accessToken`, `expiresAt`.
+  - Response header: `Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=Strict; Path=/auth/refresh; Max-Age=...`
+  - **Redis**: Lưu `refresh_token:{jti}` → `userId` (TTL = thời gian hết hạn refresh). SADD `user_refresh_tokens:{userId}` jti.
+  - **Multi-device**: Mỗi lần login tạo session mới, không ghi đè session cũ. User có thể đăng nhập đồng thời trên nhiều thiết bị (mobile, desktop, tablet...).
+
+- **Refresh Token** (`POST /auth/refresh`):
+  - Input: `refreshToken` từ **HTTP Cookie** (browser tự gửi khi request đến `Path=/auth/refresh`).
+  - Validate: JWT signature + expiry + `refresh_token:{jti}` tồn tại trong Redis (token đã được cấp và chưa bị revoke).
+  - Nếu không tồn tại trong Redis → `UNAUTHENTICATED` (token đã logout hoặc chưa từng được cấp).
+  - **Token rotation**: Thu hồi token cũ (DEL `refresh_token:{jti}`, SREM khỏi user set), generate token mới, lưu vào Redis.
+  - Response: giống Login (`user`, `accessToken`, `expiresAt` + Set-Cookie với refresh token mới).
+  - **Multi-device**: Mỗi device có refresh token riêng. Refresh chỉ validate và rotate token của device hiện tại, không ảnh hưởng các device khác.
+
+- **Logout** (`POST /auth/logout`):
+  - Input: `accessToken` (body) + `refreshToken` (cookie, optional).
+  - **Access token**: Parse JWT, lấy `jti` + `expiry_time` → ghi vào `invalidated_token` (`id = jti`). Mọi request sau có `jti` này trong access token bị reject.
+  - **Refresh token**: Nếu cookie có `refreshToken` → parse lấy `jti`, DEL `refresh_token:{jti}`, SREM khỏi `user_refresh_tokens:{userId}`. Chỉ device này không refresh được nữa.
+  - **Response header**: `Set-Cookie: refreshToken=; Max-Age=0; Path=/auth/refresh` → xóa cookie trên browser.
+  - **Multi-device**: Logout chỉ invalidate session của device gọi API. Các device khác vẫn đăng nhập bình thường.
 
 - **Forgot password** (`POST /auth/forgot-password`):
   - Tìm user theo email (multi-tenant: user thuộc company).
@@ -79,9 +94,11 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
   - Nếu hợp lệ: set password mới cho user, `password_reset_tokens.used_at = NOW()`.
   - Nếu không: trả lỗi "Invalid or expired reset token".
 
-- **Session lifecycle** (`user_sessions`):
-  - Khi login/refresh → tạo/cập nhật session với `is_active`, `expires_at`.
-  - Cleanup định kỳ: xóa sessions đã hết hạn.
+- **Session lifecycle** (Redis):
+  - **Login**: Tạo `refresh_token:{jti}` (TTL = refresh expiry), SADD `user_refresh_tokens:{userId}` jti.
+  - **Refresh**: Xóa token cũ, tạo token mới (rotation).
+  - **Logout**: Xóa `refresh_token:{jti}` khỏi Redis.
+  - **TTL**: Redis tự xóa key khi hết TTL. Set `user_refresh_tokens:{userId}` có expiry khi refresh để tránh set rỗng tồn tại vĩnh viễn.
 
 ---
 
