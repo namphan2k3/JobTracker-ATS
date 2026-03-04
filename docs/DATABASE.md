@@ -97,11 +97,11 @@ JobTracker ATS (Applicant Tracking System) sử dụng **MySQL 8.0** làm databa
 ### 12. Email Type ENUM (`email_outbox.email_type`)
 
 **User & Auth:**
-- `USER_INVITE` - Invite user (POST /admin/users/invite)
+- `USER_INVITE` - Invite user (POST /admin/users/invite) — token trong `user_invitations`
 - `USER_INVITE_RESEND` - Resend invite (POST /admin/users/{userId}/resend-invite)
-- `EMAIL_VERIFICATION` - Verify email (POST /auth/verify-email)
+- `EMAIL_VERIFICATION` - Verify email (POST /auth/verify-email) — token trong `email_verification_tokens`
 - `EMAIL_VERIFICATION_RESEND` - Resend verification (POST /auth/resend-verification)
-- `PASSWORD_RESET` - Forgot password (POST /auth/forgot-password)
+- `PASSWORD_RESET` - Forgot password (POST /auth/forgot-password) — token trong `password_reset_tokens`
 
 **Application Workflow** (dùng layout type `CANDIDATE_WORKFLOW_LAYOUT`):
 - `APPLICATION_CONFIRMATION` - Xác nhận nhận đơn
@@ -783,7 +783,7 @@ CREATE TABLE interview_interviewers (
 > - Validate cho TẤT CẢ interviewers trong array khi tạo/cập nhật interview
 > - Ví dụ: Interview A (10:00-11:00) và Interview B (10:30-11:30) → Overlap → Reject
 
-### 8. Attachments Table (Bảng file đính kèm - ATS)
+### 10. Attachments Table (Bảng file đính kèm - ATS)
 
 ```sql
 CREATE TABLE attachments (
@@ -826,7 +826,7 @@ CREATE TABLE attachments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 9. Notifications Table (Bảng thông báo - ATS)
+### 11. Notifications Table (Bảng thông báo - ATS)
 
 ```sql
 CREATE TABLE notifications (
@@ -872,7 +872,7 @@ CREATE TABLE notifications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-    ### 12. User Sessions Table (Bảng phiên đăng nhập)
+### 12. User Sessions Table (Bảng phiên đăng nhập)
 
 ```sql
 CREATE TABLE user_sessions (
@@ -948,11 +948,77 @@ CREATE TABLE user_invitations (
 > - Mỗi user có thể có nhiều invitations (nếu resend), nhưng chỉ 1 token active (chưa used và chưa expired)
 > - Khi user accept invite → `used_at` được set → Token không thể dùng lại
 
-### 11. Invalidated Tokens Table (Bảng tokens đã vô hiệu hóa)
+### 14. Email Verification Tokens Table (Bảng token xác thực email)
+
+```sql
+CREATE TABLE email_verification_tokens (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'UUID token',
+    user_id VARCHAR(36) NOT NULL COMMENT 'UUID user cần verify (sau register)',
+    company_id VARCHAR(36) NOT NULL COMMENT 'Multi-tenant key',
+    token VARCHAR(255) NOT NULL UNIQUE COMMENT 'Token (random string hoặc UUID)',
+    expires_at TIMESTAMP NOT NULL COMMENT 'Thời gian hết hạn (24-48 giờ)',
+    used_at TIMESTAMP NULL COMMENT 'Thời gian đã verify (null nếu chưa dùng)',
+    sent_at TIMESTAMP NOT NULL COMMENT 'Thời gian gửi email',
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+    
+    INDEX idx_user_id (user_id),
+    INDEX idx_company_id (company_id),
+    INDEX idx_token (token),
+    INDEX idx_expires_at (expires_at),
+    INDEX idx_user_unused (user_id, used_at, expires_at, deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+> **Token Logic**:
+> - Tạo khi `POST /auth/register` (Company Admin self-signup) hoặc `POST /auth/resend-verification`
+> - Generate token random → lưu `token`. Gửi token qua email.
+> - Expiry: 24-48 giờ
+> - Verify: `POST /auth/verify-email` — so sánh token từ request với `token`. Nếu match và chưa expired → set `users.email_verified = true`, `used_at = NOW()`
+
+### 15. Password Reset Tokens Table (Bảng token reset mật khẩu)
+
+```sql
+CREATE TABLE password_reset_tokens (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'UUID token',
+    user_id VARCHAR(36) NOT NULL COMMENT 'UUID user cần reset password',
+    company_id VARCHAR(36) NOT NULL COMMENT 'Multi-tenant key',
+    token VARCHAR(255) NOT NULL UNIQUE COMMENT 'Token (random string hoặc UUID)',
+    expires_at TIMESTAMP NOT NULL COMMENT 'Thời gian hết hạn (thường 1 giờ)',
+    used_at TIMESTAMP NULL COMMENT 'Thời gian đã reset (null nếu chưa dùng)',
+    sent_at TIMESTAMP NOT NULL COMMENT 'Thời gian gửi email',
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
+    
+    INDEX idx_user_id (user_id),
+    INDEX idx_company_id (company_id),
+    INDEX idx_token (token),
+    INDEX idx_expires_at (expires_at),
+    INDEX idx_user_unused (user_id, used_at, expires_at, deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+> **Token Logic**:
+> - Tạo khi `POST /auth/forgot-password`
+> - Generate token random → lưu `token`. Gửi token qua email.
+> - Expiry: 1 giờ (có thể config)
+> - Reset: `POST /auth/reset-password` — so sánh token từ request với `token`. Nếu match và chưa expired → set password mới, `used_at = NOW()`
+
+### 16. Invalidated Tokens Table (Bảng tokens đã vô hiệu hóa)
 
 ```sql
 CREATE TABLE invalidated_token (
-    id VARCHAR(255) PRIMARY KEY COMMENT 'JWT ID (jit) - Unique identifier của JWT token',
+    id VARCHAR(255) PRIMARY KEY COMMENT 'JWT ID (jti) - Unique identifier của JWT token',
     expiry_time TIMESTAMP NOT NULL COMMENT 'Thời gian hết hạn của token (từ JWT claims)',
     
     -- Full Audit Fields
@@ -975,15 +1041,15 @@ CREATE TABLE invalidated_token (
 
 > ** Token Invalidation Logic**:
 > - Khi user logout qua `POST /auth/logout`:
->   - System parse access token → Lấy `jit` (JWT ID) và `expiry_time`
->   - Insert vào `invalidated_token` với `id = jit`, `expiry_time = token expiry`
+>   - System parse access token → Lấy `jti` (JWT ID) và `expiry_time`
+>   - Insert vào `invalidated_token` với `id = jti`, `expiry_time = token expiry`
 >   - Delete refresh token từ Redis cache
 > - Khi verify token (trong authentication filter):
->   - Check xem `jit` có trong `invalidated_token` không
+>   - Check xem `jti` có trong `invalidated_token` không
 >   - Nếu có → Token đã bị invalidate → Reject request
 > - Cleanup: Có thể chạy scheduled job để xóa các records có `expiry_time < NOW()` (tokens đã expired)
 
-### 12. Email Templates Table (Bảng template email)
+### 17. Email Templates Table (Bảng template email)
 
 ```sql
 CREATE TABLE email_templates (
@@ -1022,7 +1088,7 @@ CREATE TABLE email_templates (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 13. Email Outbox Table (Bảng outbox cho async email sending)
+### 18. Email Outbox Table (Bảng outbox cho async email sending)
 
 ```sql
 CREATE TABLE email_outbox (
@@ -1075,7 +1141,7 @@ CREATE TABLE email_outbox (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 14. Audit Logs Table (Bảng log audit - ATS)
+### 19. Audit Logs Table (Bảng log audit - ATS)
 
 ```sql
 CREATE TABLE audit_logs (

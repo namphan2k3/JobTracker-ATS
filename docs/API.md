@@ -187,6 +187,12 @@ Xác thực email với token từ email verification link.
 
 > ⚠️ **Bắt buộc**: User phải verify email trước khi có thể login (trừ khi được Admin tạo và verify sẵn).
 
+> **Token Storage** (bảng `email_verification_tokens`):
+> - Token được tạo khi `POST /auth/register` hoặc `POST /auth/resend-verification`
+> - Generate token random → lưu `token`. Gửi token qua email.
+> - Verify: so sánh token từ request với `token`. Nếu match và chưa expired → `users.email_verified = true`, `used_at = NOW()`
+> - Expiry: 24-48 giờ
+
 #### Request Body
 ```json
 {
@@ -220,6 +226,8 @@ Xác thực email với token từ email verification link.
 **POST** `/auth/resend-verification`
 
 Gửi lại email verification.
+
+> **Flow**: Tìm user theo email → tạo token mới → insert vào `email_verification_tokens` → gửi email với link chứa raw token.
 
 #### Request Body
 ```json
@@ -318,6 +326,11 @@ Authorization: Bearer <access_token>
 
 Gửi email reset password.
 
+> **Token Storage** (bảng `password_reset_tokens`):
+> - Tìm user theo email → generate token random → insert vào `password_reset_tokens`. Gửi token qua email.
+> - Expiry: 1 giờ (có thể config)
+> - Multi-tenant: `company_id` từ user
+
 #### Request Body
 ```json
 {
@@ -339,6 +352,8 @@ Gửi email reset password.
 **POST** `/auth/reset-password`
 
 Reset password với token từ email.
+
+> **Flow**: So sánh token từ request với `token` trong `password_reset_tokens` (used_at IS NULL, expires_at > NOW). Nếu match → set password mới, `used_at = NOW()`.
 
 #### Request Body
 ```json

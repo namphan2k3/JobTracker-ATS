@@ -159,7 +159,6 @@ com.jobtracker
 │   ├── Company.java           # Company entity (Tenant)
 │   ├── Job.java               # Job entity (Job Postings - ATS)
 │   ├── Application.java ➕     # Application entity (CORE ATS)
-│   ├── Application.java ➕     # Application entity (CORE ATS)
 │   ├── ApplicationStatus.java ➕ # Application status lookup table entity
 │   ├── ApplicationStatusHistory.java ➕ # Application status history
 │   ├── Comment.java ➕         # Comment entity
@@ -169,11 +168,17 @@ com.jobtracker
 │   ├── Attachment.java        # File attachment entity (link to applications)
 │   ├── Notification.java      # Notification entity (multi-tenant)
 │   ├── UserSession.java       # User session entity
+│   ├── UserInvitation.java    # Invite token entity
+│   ├── EmailVerificationToken.java ➕ # Email verification token
+│   ├── PasswordResetToken.java ➕ # Password reset token
+│   ├── InvalidatedToken.java  # JWT invalidation entity
 │   ├── AuditLog.java          # Audit log entity (multi-tenant)
 │   ├── Role.java              # RBAC Role entity
 │   └── Permission.java        # RBAC Permission entity
 ├── repository/                 # Data Access Layer
 │   ├── UserRepository.java    # User data access (multi-tenant)
+│   ├── EmailVerificationTokenRepository.java ➕ # Email verification token
+│   ├── PasswordResetTokenRepository.java ➕ # Password reset token
 │   ├── CompanyRepository.java # Company data access
 │   ├── JobRepository.java     # Job data access (multi-tenant)
 │   ├── ApplicationRepository.java ➕ # Application data access (multi-tenant)
@@ -1475,12 +1480,12 @@ spring:
 
 Dựa trên database schema, có **3 patterns chính** cho audit fields:
 
-#### **Pattern 1: FULL AUDIT** (13 bảng)
+#### **Pattern 1: FULL AUDIT** (14 bảng)
 ```java
 // Có: created_by, updated_by, created_at, updated_at
-- Lookup Tables (3 bảng): roles, permissions (RBAC), application_statuses
+- Lookup Tables (4 bảng): roles, permissions (RBAC), application_statuses, email_templates
 - Core Business Entities (8 bảng): users, companies, jobs, skills, interviews, applications, comments, attachments
-- Auth/Token Tables (2 bảng): user_invitations, invalidated_token
+- Auth/Invite Tables (2 bảng): user_invitations (invite tokens), invalidated_token (JWT invalidation)
 // Note: Các lookup tables khác (job_statuses, job_types, etc.) đã chuyển sang ENUM
 ```
 
@@ -1491,11 +1496,19 @@ Dựa trên database schema, có **3 patterns chính** cho audit fields:
 // Note: user_skills và job_resumes đã bỏ
 ```
 
-#### **Pattern 3: SYSTEM / CONFIG TABLES** (6 bảng)
+#### **Pattern 3: SYSTEM / CONFIG TABLES** (7 bảng)
 ```java
 // Có: created_at, updated_at (không có user tracking, không soft delete)
 - System Tables: notifications, user_sessions, audit_logs
-- Config/Billing Tables: subscription_plans, company_subscriptions, payments
+- Config/Billing Tables: subscription_plans, company_subscriptions, payments, email_outbox
+```
+
+#### **Pattern 4: TOKEN TABLES** (2 bảng)
+```java
+// Có: created_at, updated_at, deleted_at (không có created_by, updated_by)
+// Lưu token (random string hoặc UUID)
+- email_verification_tokens: Verify email (register, resend verification)
+- password_reset_tokens: Forgot/Reset password
 ```
 
 ### 📋 Base Class Mapping Table
@@ -1516,23 +1529,26 @@ Dựa trên database schema, có **3 patterns chính** cho audit fields:
 | | `applications` ➕ | ✅ created_by, updated_by, created_at, updated_at | ✅ deleted_at | 10 |
 | | `comments` ➕ | ✅ created_by, updated_by, created_at, updated_at | ✅ deleted_at | 11 |
 | | `attachments` | ✅ created_by, updated_by, created_at, updated_at | ✅ deleted_at | 12 |
-| | **Auth/Token Tables (2 bảng)** | | | |
+| | **Auth/Invite Tables (2 bảng)** | | | |
 | | `user_invitations` ➕ | ✅ created_by, updated_by, created_at, updated_at | ✅ deleted_at | 13 |
 | | `invalidated_token` ➕ | ✅ created_by, updated_by, created_at, updated_at | ✅ deleted_at | 14 |
+| **BaseEntity** | **Token Tables (2 bảng)** | | | |
+| | `email_verification_tokens` ➕ | ✅ created_at, updated_at | ✅ deleted_at | 15 |
+| | `password_reset_tokens` ➕ | ✅ created_at, updated_at | ✅ deleted_at | 16 |
 | **BasePartialAuditEntity** | **Junction Tables (3 bảng)** | | | |
-| | `job_skills` | ✅ created_by, created_at, updated_at | ✅ is_deleted | 15 |
-| | `role_permissions` ➕ | ✅ created_by, created_at, updated_at | ✅ is_deleted | 16 |
-| | `interview_interviewers` ➕ | ✅ created_by, created_at, updated_at | ✅ is_deleted | 17 |
+| | `job_skills` | ✅ created_by, created_at, updated_at | ✅ is_deleted | 17 |
+| | `role_permissions` ➕ | ✅ created_by, created_at, updated_at | ✅ is_deleted | 18 |
+| | `interview_interviewers` ➕ | ✅ created_by, created_at, updated_at | ✅ is_deleted | 19 |
 | **BaseSystemEntity** | **System / Config Tables (7 bảng)** | | | |
-| | `notifications` | ✅ created_at, updated_at | ❌ No soft delete | 18 |
-| | `user_sessions` | ✅ created_at, updated_at | ❌ No soft delete | 19 |
-| | `audit_logs` | ✅ created_at | ❌ No soft delete | 20 |
-| | `subscription_plans` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 21 |
-| | `company_subscriptions` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 22 |
-| | `payments` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 23 |
-| | `email_outbox` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 24 |
+| | `notifications` | ✅ created_at, updated_at | ❌ No soft delete | 20 |
+| | `user_sessions` | ✅ created_at, updated_at | ❌ No soft delete | 21 |
+| | `audit_logs` | ✅ created_at | ❌ No soft delete | 22 |
+| | `subscription_plans` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 23 |
+| | `company_subscriptions` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 24 |
+| | `payments` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 25 |
+| | `email_outbox` ➕ | ✅ created_at, updated_at | ❌ No soft delete | 26 |
 | **Không có Base Class** | **History Tables (1 bảng)** | | | |
-| | `application_status_history` ➕ | ❌ No audit fields | ❌ No soft delete | 25 |
+| | `application_status_history` ➕ | ❌ No audit fields | ❌ No soft delete | 27 |
 
 ### 🎯 Implementation Summary
 
@@ -1540,9 +1556,16 @@ Dựa trên database schema, có **3 patterns chính** cho audit fields:
 ```java
 // Extends: BaseSoftDeleteEntity
 // Fields: created_by, updated_by, created_at, updated_at, deleted_at
-// Usage: Lookup tables (roles, permissions, application_statuses, email_templates) + core business entities + auth/token tables
-// Note: Các lookup tables khác (job_statuses, job_types, etc.) đã chuyển sang ENUM
-// Auth/Token Tables: user_invitations (invite tokens), invalidated_token (JWT invalidation)
+// Usage: Lookup tables (roles, permissions, application_statuses, email_templates) + core business entities + auth/invite tables
+// Auth/Invite Tables: user_invitations (invite tokens), invalidated_token (JWT invalidation)
+```
+
+#### **BaseEntity** (Token Tables - 2 bảng)
+```java
+// Extends: BaseEntity (created_at, updated_at)
+// Fields: created_at, updated_at, deleted_at (no created_by, updated_by)
+// Usage: email_verification_tokens, password_reset_tokens
+// Lưu token (random string hoặc UUID)
 ```
 
 #### **BasePartialAuditEntity** (3 bảng)
@@ -1633,7 +1656,25 @@ public abstract class BaseSystemEntity {
 }
 ```
 
-#### 4. BaseSoftDeleteEntity (deleted_at)
+#### 4. BaseEntity (created_at, updated_at)
+```java
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+public abstract class BaseEntity {
+    
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    // Getters, setters
+}
+```
+
+#### 5. BaseSoftDeleteEntity (deleted_at)
 ```java
 @MappedSuperclass
 public abstract class BaseSoftDeleteEntity {
@@ -1658,7 +1699,7 @@ public abstract class BaseSoftDeleteEntity {
 }
 ```
 
-#### 5. BaseBooleanDeleteEntity (is_deleted)
+#### 6. BaseBooleanDeleteEntity (is_deleted)
 ```java
 @MappedSuperclass
 public abstract class BaseBooleanDeleteEntity {
@@ -1841,12 +1882,80 @@ public class UserInvitation extends BaseFullAuditEntity {
 public class InvalidatedToken extends BaseFullAuditEntity {
     @Id
     @Column(name = "id", length = 255)
-    private String id; // JWT ID (jit) - không dùng UUID generation
+    private String id; // JWT ID (jti) - không dùng UUID generation
     
     @Column(name = "expiry_time", nullable = false)
     private Date expiryTime; // Thời gian hết hạn của token (từ JWT claims)
     
     // Audit fields inherited from BaseFullAuditEntity
+}
+
+@Entity
+@Table(name = "email_verification_tokens")
+public class EmailVerificationToken extends BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", length = 36)
+    private String id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company; // Multi-tenant key
+    
+    @Column(nullable = false, unique = true, length = 255)
+    private String token;
+    
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt; // 24-48 giờ
+    
+    @Column(name = "used_at")
+    private LocalDateTime usedAt;
+    
+    @Column(name = "sent_at", nullable = false)
+    private LocalDateTime sentAt;
+    
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+    
+    // created_at, updated_at inherited from BaseEntity
+}
+
+@Entity
+@Table(name = "password_reset_tokens")
+public class PasswordResetToken extends BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", length = 36)
+    private String id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company; // Multi-tenant key
+    
+    @Column(nullable = false, unique = true, length = 255)
+    private String token;
+    
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt; // Thường 1 giờ
+    
+    @Column(name = "used_at")
+    private LocalDateTime usedAt;
+    
+    @Column(name = "sent_at", nullable = false)
+    private LocalDateTime sentAt;
+    
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+    
+    // created_at, updated_at inherited from BaseEntity
 }
 ```
 

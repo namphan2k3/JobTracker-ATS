@@ -20,10 +20,21 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 ## 1. Authentication & session flow
 
+> **Token tables** (tách riêng theo domain):
+> - `user_invitations`: Invite flow (Admin mời user → accept-invite set password)
+> - `email_verification_tokens`: Email verification (register, resend)
+> - `password_reset_tokens`: Forgot/Reset password
+
 - **Company self-signup** (`POST /auth/register`):
   - Tạo `company` mới + user `COMPANY_ADMIN` (`users`).
   - `email_verified = false`, gửi email verify.
-  - Sau khi verify qua `POST /auth/verify-email` → user mới được login.
+  - Tạo record trong `email_verification_tokens`:
+    - Generate token random → lưu `token`. Gửi token qua email.
+    - `user_id`, `company_id`, `expires_at = NOW() + 24-48h`, `used_at = NULL`, `sent_at = NOW()`.
+  - Sau khi verify qua `POST /auth/verify-email` (so sánh token) → `users.email_verified = true`, `email_verification_tokens.used_at = NOW()` → user mới được login.
+
+- **Resend verification** (`POST /auth/resend-verification`):
+  - Tìm user theo email → tạo token mới → insert vào `email_verification_tokens` → gửi email.
 
 - **Invite-based user creation (team members)**:
   - **Flow chuẩn B2B** (Jira/Slack/Linear):
@@ -57,6 +68,16 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
     - Ghi vào `invalidated_token` (`id = jit`).
     - Xóa refresh token khỏi cache.
     - Mọi request sau đó có `jit` này bị reject.
+
+- **Forgot password** (`POST /auth/forgot-password`):
+  - Tìm user theo email (multi-tenant: user thuộc company).
+  - Generate token random → insert vào `password_reset_tokens` (`user_id`, `company_id`, `token`, `expires_at = NOW() + 1h`, `used_at = NULL`, `sent_at = NOW()`).
+  - Gửi email với link chứa token.
+
+- **Reset password** (`POST /auth/reset-password`):
+  - So sánh token từ request với `token` trong `password_reset_tokens` (used_at IS NULL, expires_at > NOW, deleted_at IS NULL).
+  - Nếu hợp lệ: set password mới cho user, `password_reset_tokens.used_at = NOW()`.
+  - Nếu không: trả lỗi "Invalid or expired reset token".
 
 - **Session lifecycle** (`user_sessions`):
   - Khi login/refresh → tạo/cập nhật session với `is_active`, `expires_at`.
