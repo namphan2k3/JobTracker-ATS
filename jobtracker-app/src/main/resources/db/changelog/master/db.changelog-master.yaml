@@ -47,6 +47,12 @@ databaseChangeLog:
   - include:
       file: db/changelog/table/create-table-user-sessions.yaml
   - include:
+      file: db/changelog/table/create-table-user-invitations.yaml
+  - include:
+      file: db/changelog/table/create-table-email-verification-tokens.yaml
+  - include:
+      file: db/changelog/table/create-table-password-reset-tokens.yaml
+  - include:
       file: db/changelog/table/create-table-invalidated-token.yaml
   - include:
       file: db/changelog/table/create-table-audit-logs.yaml
@@ -94,6 +100,12 @@ databaseChangeLog:
   - include:
       file: db/changelog/foreign-keys/add-constraints-user-sessions.yaml
   - include:
+      file: db/changelog/foreign-keys/add-constraints-user-invitations.yaml
+  - include:
+      file: db/changelog/foreign-keys/add-constraints-email-verification-tokens.yaml
+  - include:
+      file: db/changelog/foreign-keys/add-constraints-password-reset-tokens.yaml
+  - include:
       file: db/changelog/foreign-keys/add-constraints-invalidated-token.yaml
   - include:
       file: db/changelog/foreign-keys/add-constraints-audit-logs.yaml
@@ -140,6 +152,12 @@ databaseChangeLog:
       file: db/changelog/indexes/create-indexes-email-outbox.yaml
   - include:
       file: db/changelog/indexes/create-indexes-user-sessions.yaml
+  - include:
+      file: db/changelog/indexes/create-indexes-user-invitations.yaml
+  - include:
+      file: db/changelog/indexes/create-indexes-email-verification-tokens.yaml
+  - include:
+      file: db/changelog/indexes/create-indexes-password-reset-tokens.yaml
   - include:
       file: db/changelog/indexes/create-indexes-invalidated-token.yaml
   - include:

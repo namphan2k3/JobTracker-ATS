@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-constraints-email-verification-tokens
+      author: namphan
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: email_verification_tokens
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+            constraintName: fk_email_verification_tokens_user_id_users
+        - addForeignKeyConstraint:
+            baseTableName: email_verification_tokens
+            baseColumnNames: company_id
+            referencedTableName: companies
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            constraintName: fk_email_verification_tokens_company_id_companies
