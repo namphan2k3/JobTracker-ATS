@@ -39,6 +39,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 - **Invite-based user creation (team members)**:
   - **Flow chuẩn B2B** (Jira/Slack/Linear):
     1. **Admin/HR mời user** (`POST /admin/users/invite`):
+       - **Check plan limit**: `PlanLimitService.enforceUserLimit` — đếm users `is_billable = true`, nếu `count >= plan.maxUsers` → `PLAN_LIMIT_USERS_EXCEEDED`.
        - Tạo `users` record với:
          - `email_verified = false`, `password = NULL`, `is_active = false`, `is_billable` tùy role.
        - Tạo record trong `user_invitations`:
@@ -107,12 +108,25 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 - **Subscription plans** (`subscription_plans`):
   - Catalog các gói (FREE/BASIC/PRO/...), chứa hạn mức: `maxJobs`, `maxUsers`, `maxApplications`, `duration_days`, ...
 
+- **Plan limit enforcement** (qua `PlanLimitService`):
+  - **maxApplications**: Khi tạo Application (candidate apply hoặc HR manual entry).
+    - Lấy subscription ACTIVE → plan → `max_applications`. Nếu `NULL` → unlimited.
+    - Đếm applications của company (`deleted_at IS NULL`). Nếu `count >= max` → `PLAN_LIMIT_APPLICATIONS_EXCEEDED` (403).
+  - **maxJobs**: Khi tạo Job (`POST /jobs`).
+    - Lấy subscription ACTIVE → plan → `max_jobs`. Nếu `NULL` → unlimited.
+    - Đếm jobs của company (`deleted_at IS NULL`). Nếu `count >= max` → `PLAN_LIMIT_JOBS_EXCEEDED` (403).
+  - **maxUsers**: Khi invite user (`POST /admin/users/invite`).
+    - Chỉ áp dụng cho invite (user `isBillable = true`). Add Employee (`isBillable = false`) không tính.
+    - Lấy subscription ACTIVE → plan → `max_users`. Nếu `NULL` → unlimited.
+    - Đếm users billable của company (`is_billable = true`, `deleted_at IS NULL`). Nếu `count >= max` → `PLAN_LIMIT_USERS_EXCEEDED` (403).
+  - Nếu company không có subscription ACTIVE → `COMPANY_SUBSCRIPTION_NOT_EXISTED`.
+
 - **Company subscriptions** (`company_subscriptions`):
   - Khi company mua/đổi gói:
     - Tạo record với `status = PENDING`, `start_date`, `end_date (nullable)`.
     - Sau thanh toán thành công → `status = ACTIVE`, set `end_date` nếu có kỳ hạn.
   - Khi hết hạn:
-    - Scheduled job chuyển `status` sang `EXPIRED`, áp hạn mức tương ứng.
+    - **PlanLimitScheduler** chạy theo cron (mặc định mỗi giờ): tìm subscription `ACTIVE` có `end_date < NOW()`, chuyển `status` sang `EXPIRED`. Config: `scheduler.plan-limit.cron`.
   - Khi admin hủy:
     - `status = CANCELLED`, có thể cắt quyền ngay hoặc đến `end_date`.
 
@@ -132,6 +146,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 - **Tạo job** (`POST /jobs`):
   - Actor: **HR/Recruiter**.
+  - **Check plan limit**: `PlanLimitService.enforceJobLimit` — nếu `count(jobs) >= plan.maxJobs` → `PLAN_LIMIT_JOBS_EXCEEDED`.
   - DB: tạo record trong `jobs` với:
     - `job_status = DRAFT` (theo API & entity `Job`).
     - `company_id` lấy từ JWT, không cho client tự truyền.
@@ -196,21 +211,22 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 - **Business flow (từ `ApplicationServiceImpl.ApplyToJob`)**:
   1. Load `Job` theo `jobId` (phải `deleted_at IS NULL`).
-  2. Lấy `ApplicationStatus` default:
+  2. **Check plan limit**: Lấy subscription ACTIVE của `job.company` → nếu `plan.maxApplications` có giá trị và `count(applications) >= maxApplications` → lỗi `PLAN_LIMIT_APPLICATIONS_EXCEEDED`.
+  3. Lấy `ApplicationStatus` default:
      - Ưu tiên status có `company_id = job.company_id` và `is_default = true`.
      - Nếu không có → dùng system default (`company_id IS NULL`, `is_default = true`), nếu không tồn tại → lỗi `DEFAULT_STATUS_NOT_CONFIGURED`.
-  3. Validate file CV là PDF (`PdfFileValidator`).
-  4. Upload CV lên Cloudinary:
+  4. Validate file CV là PDF (`PdfFileValidator`).
+  5. Upload CV lên Cloudinary:
      - Folder: `jobtracker_ats/applications/{applicationToken}/cv`.
      - Lưu `resumeFilePath` = `secure_url`, nếu upload fail → throw + rollback.
-  5. Parse text từ PDF, load `job_skills`, gọi `CVScoringService.score()` → tính `matchScore` + `matched / missing skills`.
-  6. Tạo `Application`:
+  6. Parse text từ PDF, load `job_skills`, gọi `CVScoringService.score()` → tính `matchScore` + `matched / missing skills`.
+  7. Tạo `Application`:
      - `status` = default status (thường là kiểu `APPLIED`), `applicationToken` random UUID.
      - `appliedDate = LocalDate.now()`.
      - `matchScore`, `matchedSkills (JSON)`, `resumeFilePath`, `candidate info`, ...
-  7. Save `Application` (nếu fail → xóa file Cloudinary).
-  8. (Theo `API.md`): tạo bản ghi đầu tiên trong `application_status_history` với `fromStatus = null`, `toStatus = default`.
-  9. Gửi email xác nhận + tạo `Notification` type `APPLICATION_RECEIVED` cho HR/Recruiter (thực hiện qua event + notification/email service).
+  8. Save `Application` (nếu fail → xóa file Cloudinary).
+  9. (Theo `API.md`): tạo bản ghi đầu tiên trong `application_status_history` với `fromStatus = null`, `toStatus = default`.
+  10. Gửi email xác nhận + tạo `Notification` type `APPLICATION_RECEIVED` cho HR/Recruiter (thực hiện qua event + notification/email service).
 
 ### 4.3. Tạo Application – HR manual entry (flow phụ)
 
@@ -219,6 +235,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
   - Request chứa `jobId`, `candidateName`, `candidateEmail`, `statusId`, `source`, `appliedDate`, ...
   - Trong `ApplicationServiceImpl.createApplication`:
     - Validate `Job` tồn tại, `ApplicationStatus` tồn tại.
+    - **Check plan limit**: Giống ApplyToJob — nếu `count(applications) >= plan.maxApplications` → lỗi `PLAN_LIMIT_APPLICATIONS_EXCEEDED`.
     - Tạo `Application` với status theo `request.statusId`.
     - CV sẽ được upload sau dưới dạng `Attachment` (`attachmentType = RESUME`).
 
@@ -330,6 +347,109 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
     - Tạo `Notification` type `COMMENT_ADDED` cho các HR liên quan (hoặc owner của application), nếu cần.
   - Khi xoá comment:
     - Không xoá cứng, dùng soft delete để bảo toàn audit trail.
+
+### 4.9 CV Scoring (Match Score)
+
+- **Mục đích**: Tự động tính điểm khớp (0–100) giữa CV và Job Description dựa trên skills của job. HR dùng để filter/sort applications, biết candidate thiếu skill gì.
+
+---
+
+#### 4.9.1 Các entry point trigger scoring
+
+| Entry point | API | Service/Method | Thời điểm |
+|-------------|-----|---------------|-----------|
+| **Candidate apply** | `POST /public/jobs/{jobId}/apply` | `ApplicationServiceImpl.ApplyToJob` | Ngay trong request, **synchronous** |
+| **HR upload CV** | `POST /applications/{applicationId}/attachments` | `AttachmentServiceImpl.uploadAttachment` | Chỉ khi `attachmentType = RESUME` |
+
+**Lưu ý**: `POST /public/applications/{token}/attachments` (candidate upload thêm tài liệu) **không** trigger scoring — chỉ dùng cho CERTIFICATE, PORTFOLIO, OTHER. Folder `.../attachment` khác với CV `.../cv`.
+
+---
+
+#### 4.9.2 Flow chi tiết – Candidate apply
+
+**`ApplicationServiceImpl.ApplyToJob`** (bước 4–7 trong flow tổng):
+
+1. `pdfFileValidator.validate(request.getResume())` — validate PDF.
+2. Upload CV lên Cloudinary → folder `jobtracker_ats/applications/{applicationToken}/cv`.
+3. **Extract text**: `extractText(resume.getInputStream())` — private method dùng Apache PDFBox `Loader.loadPDF()` + `PDFTextStripper.getText()`.
+4. **Load job skills**: `jobSkillRepository.findSkillsByJobId(jobId)` — query `job_skills` JOIN `skills` với `isDeleted = false`, `isActive = true`. Trả về `List<JobSkillWithName>` (skillId, skillName, isRequired, proficiencyLevel).
+5. **Score**: `cvScoringService.score(extractText, jobSkillWithNames)` → `ApplicationScoringResult`.
+6. **Map sang JSON**: `MatchedSkillsJson` → `objectMapper.writeValueAsString()` → lưu vào `matchedSkills`.
+7. Tạo `Application` với `matchScore`, `matchedSkills`, `extractedText`, `resumeFilePath`, save.
+
+---
+
+#### 4.9.3 Flow chi tiết – HR upload CV
+
+**`AttachmentServiceImpl.uploadAttachment`** (khi `attachmentType == RESUME`):
+
+1. `pdfFileValidator.validate(request.getFile())`.
+2. Upload file lên Cloudinary → folder `jobtracker_ats/applications/{applicationId}/cv`.
+3. **Extract text**: `pdfExtractionService.extractText(file.getInputStream())` — `PdfExtractionServiceImpl` dùng PDFBox (giống ApplyToJob).
+4. **Load job skills**: `jobSkillRepository.findSkillsByJobId(application.getJob().getId())`.
+5. **Score**: `cvScoringService.score(extractText, jobSkillWithNames)`.
+6. **Cập nhật Application**: `application.setResumeFilePath`, `setMatchScore`, `setExtractedText`, `setMatchedSkills` → `applicationRepository.save()`.
+7. Tạo `Attachment` record (link tới application, type RESUME).
+
+---
+
+#### 4.9.4 Logic scoring – `CVScoringServiceImpl.score`
+
+**Input**: `cvText` (String), `jobSkills` (List&lt;JobSkillWithName&gt;).
+
+**Bước 1 – Guard**: Nếu `cvText == null` hoặc blank, hoặc `jobSkills == null` hoặc empty → `buildZeroResult()`:
+- `matchScore = 0`, `missingRequiredSkills` = toàn bộ required, `missingOptionalSkills` = toàn bộ optional.
+- Nếu `skills == null` → chỉ trả `matchScore = 0`.
+
+**Bước 2 – Normalize CV**: `normalize(cvText)`:
+- `Normalizer.normalize(input, NFD)` → tách dấu (ế → e + ^).
+- `replaceAll("\\p{M}", "")` → bỏ dấu.
+- `toLowerCase()`.
+- `replaceAll("\\s+", " ")` → gom nhiều space thành 1.
+- `trim()`.
+
+**Bước 3 – Phân nhóm skills**:
+- Required: `jobSkills.stream().filter(s -> isRequired == true)`.
+- Optional: `jobSkills.stream().filter(s -> isRequired != true)`.
+
+**Bước 4 – Evaluate skills** (`evaluateSkills`):
+- Với mỗi skill: `containsSkill(normalizedCv, skill.getSkillName())`.
+- **containsSkill**: normalize skill name, build regex `(?<!\S)` + `Pattern.quote(skill)` + `(?!\S)` — word boundary (trước/sau phải là space hoặc đầu/cuối). Match → `matched`, không match → `missing`.
+- Trả về `SkillResult` (matched, missing) cho required và optional.
+
+**Bước 5 – Tính điểm** (`calculateScore`):
+- `totalRequired == 0 && totalOptional == 0` → return 0.
+- Chỉ required: `(matchedRequired / totalRequired) × 100`.
+- Chỉ optional: `(matchedOptional / totalOptional) × 100`.
+- Cả hai: `(requiredRatio × 0.7 + optionalRatio × 0.3) × 100`.
+- `Math.round()` → Integer 0–100.
+
+**Output**: `ApplicationScoringResult` với matchScore, matchedRequiredCount, totalRequiredCount, matchedOptionalCount, totalOptionalCount, matchedRequiredSkills, missingRequiredSkills, matchedOptionalSkills, missingOptionalSkills.
+
+---
+
+#### 4.9.5 Lưu trữ & cấu trúc dữ liệu
+
+- **Application**: `match_score` (INT), `matched_skills` (JSON), `extracted_text` (TEXT).
+- **MatchedSkillsJson** schema:
+  ```json
+  { "matchedRequired": [], "missingRequired": [], "matchedOptional": [], "missingOptional": [] }
+  ```
+
+- **HR**: `GET /applications` — filter `minMatchScore`, `maxMatchScore`. Sort `sortBy=matchScore`.
+- **HR**: `GET /applications/{id}` — trả `matchScore`, `matchScoreDetails` (breakdown từ `matched_skills`).
+- **Candidate**: `GET /public/applications/{token}/status` — **không** trả match score.
+
+---
+
+#### 4.9.6 Edge cases
+
+| Case | Xử lý |
+|------|-------|
+| CV rỗng, blank | `buildZeroResult` → matchScore = 0, missing = toàn bộ skills |
+| Job không có skill | `buildZeroResult` → matchScore = 0 |
+| PDF parsing fail (IOException) | Exception → không lưu Application; matchScore không được set |
+| Skill name có ký tự đặc biệt (C++) | `Pattern.quote()` escape để không bị hiểu là regex |
 
 ---
 
