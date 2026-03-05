@@ -163,5 +163,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/indexes/create-indexes-audit-logs.yaml
 
+  - include:
+      file: db/changelog/data/add-rbac-permissions.yaml
+
 
 

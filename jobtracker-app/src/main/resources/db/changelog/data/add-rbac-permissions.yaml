@@ -1,0 +1,150 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-rbac-permissions-001
+      author: system
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: "1"
+            sql: SELECT IF((SELECT COUNT(*) FROM users) > 0, 1, 0)
+      changes:
+        - sql:
+            sql: |
+              INSERT IGNORE INTO permissions (id, name, resource, action, description, is_active, created_at, updated_at)
+              VALUES
+              (UUID(), 'JOB_READ', 'job', 'read', 'Read job', true, NOW(), NOW()),
+              (UUID(), 'JOB_CREATE', 'job', 'create', 'Create job', true, NOW(), NOW()),
+              (UUID(), 'JOB_UPDATE', 'job', 'update', 'Update job', true, NOW(), NOW()),
+              (UUID(), 'JOB_DELETE', 'job', 'delete', 'Delete job', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_READ', 'application', 'read', 'Read application', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_CREATE', 'application', 'create', 'Create application', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_UPDATE', 'application', 'update', 'Update application', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_DELETE', 'application', 'delete', 'Delete application', true, NOW(), NOW()),
+              (UUID(), 'INTERVIEW_READ', 'interview', 'read', 'Read interview', true, NOW(), NOW()),
+              (UUID(), 'INTERVIEW_CREATE', 'interview', 'create', 'Create interview', true, NOW(), NOW()),
+              (UUID(), 'INTERVIEW_UPDATE', 'interview', 'update', 'Update interview', true, NOW(), NOW()),
+              (UUID(), 'INTERVIEW_DELETE', 'interview', 'delete', 'Delete interview', true, NOW(), NOW()),
+              (UUID(), 'COMMENT_READ', 'comment', 'read', 'Read comment', true, NOW(), NOW()),
+              (UUID(), 'COMMENT_CREATE', 'comment', 'create', 'Create comment', true, NOW(), NOW()),
+              (UUID(), 'COMMENT_UPDATE', 'comment', 'update', 'Update comment', true, NOW(), NOW()),
+              (UUID(), 'COMMENT_DELETE', 'comment', 'delete', 'Delete comment', true, NOW(), NOW()),
+              (UUID(), 'ATTACHMENT_READ', 'attachment', 'read', 'Read attachment', true, NOW(), NOW()),
+              (UUID(), 'ATTACHMENT_CREATE', 'attachment', 'create', 'Create attachment', true, NOW(), NOW()),
+              (UUID(), 'ATTACHMENT_DELETE', 'attachment', 'delete', 'Delete attachment', true, NOW(), NOW()),
+              (UUID(), 'SKILL_READ', 'skill', 'read', 'Read skill', true, NOW(), NOW()),
+              (UUID(), 'SKILL_CREATE', 'skill', 'create', 'Create skill', true, NOW(), NOW()),
+              (UUID(), 'SKILL_UPDATE', 'skill', 'update', 'Update skill', true, NOW(), NOW()),
+              (UUID(), 'SKILL_DELETE', 'skill', 'delete', 'Delete skill', true, NOW(), NOW()),
+              (UUID(), 'COMPANY_READ', 'company', 'read', 'Read company', true, NOW(), NOW()),
+              (UUID(), 'COMPANY_UPDATE', 'company', 'update', 'Update company', true, NOW(), NOW()),
+              (UUID(), 'COMPANY_VERIFY', 'company', 'verify', 'Verify company', true, NOW(), NOW()),
+              (UUID(), 'SUBSCRIPTION_READ', 'subscription', 'read', 'Read subscription', true, NOW(), NOW()),
+              (UUID(), 'SUBSCRIPTION_CREATE', 'subscription', 'create', 'Create subscription', true, NOW(), NOW()),
+              (UUID(), 'PAYMENT_READ', 'payment', 'read', 'Read payment', true, NOW(), NOW()),
+              (UUID(), 'PAYMENT_CREATE', 'payment', 'create', 'Create payment', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_STATUS_READ', 'application_status', 'read', 'Read application status', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_STATUS_CREATE', 'application_status', 'create', 'Create application status', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_STATUS_UPDATE', 'application_status', 'update', 'Update application status', true, NOW(), NOW()),
+              (UUID(), 'APPLICATION_STATUS_DELETE', 'application_status', 'delete', 'Delete application status', true, NOW(), NOW()),
+              (UUID(), 'EMAIL_TEMPLATE_READ', 'email_template', 'read', 'Read email template', true, NOW(), NOW()),
+              (UUID(), 'EMAIL_TEMPLATE_CREATE', 'email_template', 'create', 'Create email template', true, NOW(), NOW()),
+              (UUID(), 'EMAIL_TEMPLATE_UPDATE', 'email_template', 'update', 'Update email template', true, NOW(), NOW()),
+              (UUID(), 'EMAIL_TEMPLATE_DELETE', 'email_template', 'delete', 'Delete email template', true, NOW(), NOW()),
+              (UUID(), 'EMAIL_HISTORY_READ', 'email_history', 'read', 'Read email history', true, NOW(), NOW()),
+              (UUID(), 'NOTIFICATION_READ', 'notification', 'read', 'Read notification', true, NOW(), NOW()),
+              (UUID(), 'NOTIFICATION_UPDATE', 'notification', 'update', 'Update notification', true, NOW(), NOW()),
+              (UUID(), 'NOTIFICATION_DELETE', 'notification', 'delete', 'Delete notification', true, NOW(), NOW()),
+              (UUID(), 'AUDIT_LOG_READ', 'audit_log', 'read', 'Read audit log', true, NOW(), NOW())
+
+  - changeSet:
+      id: add-rbac-permissions-002
+      author: system
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: "1"
+            sql: SELECT IF((SELECT COUNT(*) FROM users) > 0, 1, 0)
+      changes:
+        - sql:
+            sql: |
+              INSERT IGNORE INTO role_permissions (id, role_id, permission_id, created_at, updated_at, is_deleted)
+              SELECT UUID(), r.id, p.id, NOW(), NOW(), 0
+              FROM roles r
+              CROSS JOIN permissions p
+              WHERE r.name = 'SYSTEM_ADMIN'
+              AND p.name IN (
+                'JOB_READ','JOB_CREATE','JOB_UPDATE','JOB_DELETE',
+                'APPLICATION_READ','APPLICATION_CREATE','APPLICATION_UPDATE','APPLICATION_DELETE',
+                'INTERVIEW_READ','INTERVIEW_CREATE','INTERVIEW_UPDATE','INTERVIEW_DELETE',
+                'COMMENT_READ','COMMENT_CREATE','COMMENT_UPDATE','COMMENT_DELETE',
+                'ATTACHMENT_READ','ATTACHMENT_CREATE','ATTACHMENT_DELETE',
+                'SKILL_READ','SKILL_CREATE','SKILL_UPDATE','SKILL_DELETE',
+                'COMPANY_READ','COMPANY_UPDATE','COMPANY_VERIFY',
+                'SUBSCRIPTION_READ','SUBSCRIPTION_CREATE','PAYMENT_READ','PAYMENT_CREATE',
+                'APPLICATION_STATUS_READ','APPLICATION_STATUS_CREATE','APPLICATION_STATUS_UPDATE','APPLICATION_STATUS_DELETE',
+                'EMAIL_TEMPLATE_READ','EMAIL_TEMPLATE_CREATE','EMAIL_TEMPLATE_UPDATE','EMAIL_TEMPLATE_DELETE',
+                'EMAIL_HISTORY_READ','NOTIFICATION_READ','NOTIFICATION_UPDATE','NOTIFICATION_DELETE','AUDIT_LOG_READ'
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM role_permissions rp WHERE rp.role_id = r.id AND rp.permission_id = p.id AND (rp.is_deleted = 0 OR rp.is_deleted IS NULL)
+              )
+
+  - changeSet:
+      id: add-rbac-permissions-003
+      author: system
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: "1"
+            sql: SELECT IF((SELECT COUNT(*) FROM users) > 0, 1, 0)
+      changes:
+        - sql:
+            sql: |
+              INSERT IGNORE INTO role_permissions (id, role_id, permission_id, created_at, updated_at, is_deleted)
+              SELECT UUID(), r.id, p.id, NOW(), NOW(), 0
+              FROM roles r
+              CROSS JOIN permissions p
+              WHERE r.name = 'ADMIN_COMPANY'
+              AND p.name IN (
+                'JOB_READ','JOB_CREATE','JOB_UPDATE','JOB_DELETE',
+                'APPLICATION_READ','APPLICATION_CREATE','APPLICATION_UPDATE','APPLICATION_DELETE',
+                'INTERVIEW_READ','INTERVIEW_CREATE','INTERVIEW_UPDATE','INTERVIEW_DELETE',
+                'COMMENT_READ','COMMENT_CREATE','COMMENT_UPDATE','COMMENT_DELETE',
+                'ATTACHMENT_READ','ATTACHMENT_CREATE','ATTACHMENT_DELETE',
+                'SKILL_READ','SKILL_CREATE','SKILL_UPDATE','SKILL_DELETE',
+                'COMPANY_READ','COMPANY_UPDATE',
+                'SUBSCRIPTION_READ','SUBSCRIPTION_CREATE','PAYMENT_READ','PAYMENT_CREATE',
+                'APPLICATION_STATUS_READ','APPLICATION_STATUS_CREATE','APPLICATION_STATUS_UPDATE','APPLICATION_STATUS_DELETE',
+                'EMAIL_TEMPLATE_READ','EMAIL_TEMPLATE_CREATE','EMAIL_TEMPLATE_UPDATE','EMAIL_TEMPLATE_DELETE',
+                'EMAIL_HISTORY_READ','NOTIFICATION_READ','NOTIFICATION_UPDATE','NOTIFICATION_DELETE','AUDIT_LOG_READ'
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM role_permissions rp WHERE rp.role_id = r.id AND rp.permission_id = p.id AND (rp.is_deleted = 0 OR rp.is_deleted IS NULL)
+              )
+
+  - changeSet:
+      id: add-rbac-permissions-004
+      author: system
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: "1"
+            sql: SELECT IF((SELECT COUNT(*) FROM users) > 0, 1, 0)
+      changes:
+        - sql:
+            sql: |
+              INSERT IGNORE INTO role_permissions (id, role_id, permission_id, created_at, updated_at, is_deleted)
+              SELECT UUID(), r.id, p.id, NOW(), NOW(), 0
+              FROM roles r
+              CROSS JOIN permissions p
+              WHERE r.name = 'RECRUITER'
+              AND p.name IN (
+                'JOB_READ','APPLICATION_READ','APPLICATION_UPDATE',
+                'INTERVIEW_READ','INTERVIEW_CREATE','INTERVIEW_UPDATE','INTERVIEW_DELETE',
+                'COMMENT_READ','COMMENT_CREATE','COMMENT_UPDATE','COMMENT_DELETE',
+                'ATTACHMENT_READ','ATTACHMENT_CREATE','ATTACHMENT_DELETE',
+                'SKILL_READ','NOTIFICATION_READ','NOTIFICATION_UPDATE','NOTIFICATION_DELETE'
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM role_permissions rp WHERE rp.role_id = r.id AND rp.permission_id = p.id AND (rp.is_deleted = 0 OR rp.is_deleted IS NULL)
+              )
