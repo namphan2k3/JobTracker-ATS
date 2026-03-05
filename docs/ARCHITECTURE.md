@@ -26,7 +26,6 @@ JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic
 └─────────────────────────────────────────────────────────────┘
                               │
                               │ HTTPS/REST API
-                              │ WebSocket
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │         Backend (Spring Boot 3) - Multi-Tenant              │
@@ -86,20 +85,20 @@ JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic
 - **Jackson**: Tuần tự hóa/Giải tuần tự hóa JSON
 
 #### Communication
-- **Spring Web**: Điểm cuối REST API
-- **Spring WebSocket**: Thông báo thời gian thực
-- **STOMP**: Giao thức con WebSocket
-- **Brevo API**: Gửi email transactional (thay thế Spring Mail)
-- **Thymeleaf**: Mẫu email (optional, có thể dùng Brevo templates)
+- **Spring Web**: REST API (`/api/v1`)
+- **Brevo API**: Gửi email transactional qua `EmailOutboxService` + `EmailScheduler` (queue)
+- **Email templates**: Lưu trong DB (`email_templates`), render qua `TemplateRenderer` với variable resolvers
 
 #### External Integrations
-- **Cloudinary API**: Dịch vụ lưu trữ file và quản lý media
+- **Cloudinary API**: Lưu trữ file (CV, attachments) — upload trực tiếp từ backend
 - **Brevo API**: Gửi email transactional (invite, verification, notifications)
+- **VNPay**: Thanh toán subscription (Payment flow)
+- **Redis**: Refresh token storage, permission cache (`PermissionCacheService`)
 
-#### Scheduling & Events
-- **Spring @Scheduled**: Cron jobs cho nhắc nhở
-- **ApplicationEventPublisher**: Kiến trúc hướng sự kiện
-- **@Async**: Xử lý bất đồng bộ
+#### Scheduling
+- **Spring @Scheduled**: `@EnableScheduling` trong main application
+- **EmailScheduler**: `fixedDelay = 5000` — xử lý email queue (`email_outbox`), gửi qua Brevo API
+- **PlanLimitScheduler**: `cron` (mặc định mỗi giờ) — chuyển subscription `ACTIVE` có `end_date < NOW()` sang `EXPIRED`
 
 #### Documentation & Monitoring
 - **SpringDoc OpenAPI 3**: Tài liệu API
@@ -190,83 +189,81 @@ JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic
 
 ### Package Structure
 ```
-com.jobtracker
-├── config/                 # Configuration classes
+com.jobtracker.jobtracker_app
+├── configurations/        # Configuration
 │   ├── SecurityConfig.java
-│   ├── WebConfig.java
-│   ├── DatabaseConfig.java
-│   └── WebSocketConfig.java
-├── controller/             # REST Controllers
+│   ├── RedisConfig.java
+│   ├── CloudinaryConfig.java
+│   ├── VnPayConfig.java
+│   ├── CustomJwtDecoder.java
+│   ├── JwtAuthenticationEntryPoint.java
+│   ├── AuditorAwareImpl.java
+│   └── DataInitializer.java
+├── controllers/           # REST Controllers
 │   ├── AuthController.java
-│   ├── JobController.java      # Job Postings (ATS)
-│   ├── ApplicationController.java ➕ # Applications (CORE ATS)
-│   ├── CommentController.java ➕
+│   ├── JobController.java
+│   ├── ApplicationController.java    # CORE ATS + public apply
+│   ├── ApplicationStatusController.java
+│   ├── CommentController.java
 │   ├── InterviewController.java
-│   ├── UserController.java
+│   ├── AttachmentController.java
+│   ├── AdminUserController.java      # User management (invite, add employee)
+│   ├── UserProfileController.java
+│   ├── UserSessionController.java
 │   ├── CompanyController.java
-│   ├── FileController.java      # Attachments
+│   ├── CompanySubscriptionController.java
+│   ├── SubscriptionPlanController.java
+│   ├── PaymentController.java
 │   ├── NotificationController.java
-│   └── DashboardController.java
-├── dto/                    # Data Transfer Objects
-│   ├── request/           # Request DTOs
-│   └── response/          # Response DTOs
-├── entity/                 # JPA Entities
-│   ├── User.java           # HR/Recruiter (multi-tenant với company_id)
-│   ├── Company.java        # Tenant (multi-tenant root)
-│   ├── Job.java            # Job Postings (ATS semantic)
-│   ├── Application.java    # Applications (CORE ATS entity) ➕
-│   ├── ApplicationStatus.java ➕ # Application status lookup table entity
-│   ├── ApplicationStatusHistory.java ➕
-│   ├── Comment.java        # Comments on applications ➕
-│   ├── Interview.java      # Interviews (link to applications)
-│   ├── Attachment.java     # Attachments (link to applications)
-│   ├── Skill.java          # Skills
-│   ├── Role.java           # RBAC Roles
-│   └── Permission.java     # RBAC Permissions
-├── repository/             # Data Access Layer
-│   ├── UserRepository.java
-│   ├── CompanyRepository.java
-│   ├── JobRepository.java
-│   ├── ApplicationRepository.java ➕
-│   ├── ApplicationStatusHistoryRepository.java ➕
-│   ├── CommentRepository.java ➕
-│   ├── InterviewRepository.java
-│   ├── AttachmentRepository.java
-│   └── SkillRepository.java
-├── service/                # Business Logic Layer
-│   ├── AuthService.java
-│   ├── CompanyService.java      # Multi-tenant management
-│   ├── UserService.java         # HR/Recruiter management
-│   ├── JobService.java          # Job Postings (ATS)
-│   ├── ApplicationService.java ➕ # Applications (CORE ATS)
-│   ├── CommentService.java ➕
-│   ├── InterviewService.java
-│   ├── AttachmentService.java
-│   ├── CloudinaryService.java      # Cloudinary integration ➕
-│   ├── BrevoService.java           # Brevo email integration ➕
-│   ├── NotificationService.java
-│   └── DashboardService.java
-├── security/               # Security Components
-│   ├── JwtTokenProvider.java
-│   ├── JwtAuthenticationFilter.java
-│   ├── CustomUserDetailsService.java
-│   ├── TenantFilter.java ➕        # Multi-tenant data filtering
-│   └── CompanySecurityContext.java ➕ # Company context holder
-├── event/                  # Event Handling
-│   ├── ApplicationReceivedEvent.java ➕
-│   ├── ApplicationStatusChangedEvent.java ➕
-│   ├── InterviewScheduledEvent.java
-│   ├── JobDeadlineEvent.java
-│   └── EventListener.java
-├── scheduler/              # Scheduled Tasks
-│   └── ReminderScheduler.java
-├── exception/              # Exception Handling
-│   ├── GlobalExceptionHandler.java
-│   └── BusinessException.java
-├── util/                   # Utility Classes
-│   ├── DateUtils.java
-│   └── ValidationUtils.java
-└── JobTrackerApplication.java
+│   ├── SkillController.java
+│   ├── RoleController.java
+│   ├── PermissionController.java
+│   ├── EmailTemplateController.java
+│   ├── EmailHistoryController.java
+│   └── AuditLogController.java
+├── dto/                   # Request/Response DTOs
+├── entities/              # JPA Entities
+│   ├── User.java, Company.java, Job.java, Application.java
+│   ├── ApplicationStatus.java, ApplicationStatusHistory.java
+│   ├── Comment.java, Interview.java, Attachment.java
+│   ├── Skill.java, JobSkill.java, Role.java, Permission.java, RolePermission.java
+│   ├── SubscriptionPlan.java, CompanySubscription.java, Payment.java
+│   ├── Notification.java, EmailTemplate.java, EmailOutbox.java
+│   ├── UserInvitation.java, EmailVerificationToken.java, PasswordResetToken.java
+│   ├── InvalidatedToken.java, UserSession.java, AuditLog.java
+│   └── InterviewInterviewer.java
+├── repositories/          # Spring Data JPA
+│   ├── UserRepository, CompanyRepository, JobRepository, ApplicationRepository
+│   ├── ApplicationStatusRepository, ApplicationStatusHistoryRepository
+│   ├── CommentRepository, InterviewRepository, AttachmentRepository
+│   ├── JobSkillRepository, SkillRepository, RoleRepository, PermissionRepository
+│   ├── CompanySubscriptionRepository, SubscriptionPlanRepository, PaymentRepository
+│   ├── NotificationRepository, EmailTemplateRepository, EmailOutboxRepository
+│   ├── UserInvitationRepository, EmailVerificationTokenRepository, PasswordResetTokenRepository
+│   ├── InvalidatedRepository, UserSessionRepository, AuditLogRepository
+│   └── InterviewInterviewerRepository
+├── services/              # Business Logic
+│   ├── AuthService, UserService, AdminUserService
+│   ├── CompanyService, JobService, ApplicationService
+│   ├── ApplicationStatusService, CommentService, InterviewService
+│   ├── AttachmentService, SkillService, NotificationService
+│   ├── EmailService, EmailOutboxService, EmailTemplateService
+│   ├── CompanySubscriptionService, SubscriptionPlanService, PaymentService
+│   ├── PlanLimitService           # Enforce maxJobs, maxUsers, maxApplications
+│   ├── CVScoringService           # CV match score (0-100)
+│   ├── PdfExtractionService       # PDF text extraction
+│   ├── RoleService, PermissionService, AuditLogService, UserSessionService
+│   └── TemplateRenderer
+├── services/impl/         # Service implementations
+├── services/email/        # Email resolvers (variable resolution)
+├── scheduler/             # @Scheduled jobs
+│   ├── EmailScheduler.java       # Process email outbox queue
+│   └── PlanLimitScheduler.java   # Expire subscriptions (end_date < now)
+├── mappers/               # MapStruct Entity ↔ DTO
+├── exceptions/           # GlobalExceptionHandler, AppException, ErrorCode
+├── validator/             # File validators (PdfFileValidator, ImageFileValidator)
+├── utils/                 # SecurityUtils, LocalizationUtils, MessageKeys
+└── JobtrackerAppApplication.java
 ```
 
 ### Layer Responsibilities
@@ -923,30 +920,6 @@ public class ApplicationService {
 - **Custom Exceptions**: Lỗi cụ thể nghiệp vụ
 - **Error Response Format**: Định dạng lỗi nhất quán
 - **Error Monitoring**: Theo dõi exception
-
-## 🔄 Deployment Architecture
-
-### Development Environment
-```
-Developer Machine → Local MySQL → Spring Boot App → React Dev Server
-```
-
-### Production Environment (Multi-Tenant)
-```
-Load Balancer → Spring Boot App (Multi-Tenant) → MySQL Cluster (Shared Database)
-                ↓
-Tenant Isolation Layer → Company-based Data Filtering → External Services
-```
-
-### Docker Architecture
-```
-Docker Compose:
-├── jobtracker-app (Spring Boot)
-├── jobtracker-frontend (React + CRA)
-├── mysql-db (MySQL 8.0)
-├── redis-cache (Redis - future)
-└── nginx-proxy (Reverse Proxy)
-```
 
 ## 🎯 Scalability Considerations
 
