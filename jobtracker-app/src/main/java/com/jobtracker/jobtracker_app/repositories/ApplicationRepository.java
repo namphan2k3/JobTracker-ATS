@@ -1,5 +1,6 @@
 package com.jobtracker.jobtracker_app.repositories;
 
+import com.jobtracker.jobtracker_app.dto.responses.dashboard.ApplicationsByStatusResponse;
 import com.jobtracker.jobtracker_app.entities.Application;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -40,5 +43,20 @@ public interface ApplicationRepository extends JpaRepository<Application, String
             @Param("minMatchScore") Integer minMatchScore,
             @Param("maxMatchScore") Integer maxMatchScore,
             Pageable pageable);
+
+    long countByCompany_IdAndAppliedDateAndDeletedAtIsNull(String companyId, LocalDate appliedDate);
+
+    @Query("""
+            SELECT new com.jobtracker.jobtracker_app.dto.responses.dashboard.ApplicationsByStatusResponse(
+                a.status.id,
+                a.status.name,
+                a.status.displayName,
+                COUNT(a)
+            )
+            FROM Application a
+            WHERE a.company.id = :companyId AND a.deletedAt IS NULL
+            GROUP BY a.status.id, a.status.name, a.status.displayName
+            """)
+    List<ApplicationsByStatusResponse> countByStatusGroupByCompany(@Param("companyId") String companyId);
 }
 

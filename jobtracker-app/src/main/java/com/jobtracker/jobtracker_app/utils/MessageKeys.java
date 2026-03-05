@@ -164,6 +164,9 @@ public class MessageKeys {
     public static final String SKILL_LIST_SUCCESS = "skill.list_success";
     public static final String SKILL_DETAIL_SUCCESS = "skill.detail_success";
 
+    // DASHBOARD
+    public static final String DASHBOARD_SUMMARY_SUCCESS = "dashboard.summary_success";
+
     // JOB
     public static final String JOB_NOT_EXISTED = "job.not_existed";
     public static final String JOB_CREATE_SUCCESS = "job.create_success";

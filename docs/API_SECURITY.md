@@ -48,6 +48,12 @@ These endpoints do **not** require `Authorization: Bearer <token>`.
 
 All endpoints below require `Authorization: Bearer <accessToken>`. Data is scoped by `company_id` from JWT.
 
+### 2.0 Dashboard (`/dashboard`)
+
+| Method | Endpoint           | Permission                          | Notes                    |
+| ------ | ------------------ | ----------------------------------- | ------------------------ |
+| GET    | `/dashboard/summary` | JOB_READ or APPLICATION_READ       | 4 widgets: active jobs, applications today, by status, upcoming interviews |
+
 ### 2.1 Jobs (`/jobs`)
 
 

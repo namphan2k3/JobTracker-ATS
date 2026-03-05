@@ -40,4 +40,15 @@ public interface JobRepository extends JpaRepository<Job, String> {
     Optional<Job> findByIdAndCompany_IdAndDeletedAtIsNull(String id, String companyId);
 
     long countByCompany_IdAndDeletedAtIsNull(String companyId);
+
+    long countByCompany_IdAndJobStatusAndDeletedAtIsNull(String companyId, JobStatus jobStatus);
+
+    @Query(value = "SELECT COUNT(*) FROM jobs j WHERE j.company_id = :companyId AND j.job_status = 'PUBLISHED' " +
+            "AND j.deleted_at IS NULL AND MONTH(j.published_at) = MONTH(CURRENT_DATE) AND YEAR(j.published_at) = YEAR(CURRENT_DATE)", nativeQuery = true)
+    long countPublishedThisMonth(@Param("companyId") String companyId);
+
+    @Query(value = "SELECT COUNT(*) FROM jobs j WHERE j.company_id = :companyId AND j.job_status = 'PUBLISHED' " +
+            "AND j.deleted_at IS NULL AND MONTH(j.published_at) = MONTH(DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)) " +
+            "AND YEAR(j.published_at) = YEAR(DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))", nativeQuery = true)
+    long countPublishedLastMonth(@Param("companyId") String companyId);
 }
