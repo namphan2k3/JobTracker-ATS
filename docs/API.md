@@ -21,6 +21,8 @@ Authorization: Bearer <oauth2_access_token>
 X-Company-Id: <company_id> (Optional - backend lấy từ JWT; chỉ System Admin cần gửi khi impersonate)
 ```
 
+> 📌 **Public vs Private, Permissions, Roles**: Xem [API_SECURITY.md](./API_SECURITY.md) để biết endpoint nào public, endpoint nào cần auth, permission từng API, và role chứa permission nào.
+
 ### 🔑 Multi-Tenant Context
 - Mọi API request tự động filter theo `company_id` của user
 - User chỉ có thể truy cập data của company mình
@@ -4059,12 +4061,13 @@ Trả về đầy đủ thông tin của một interview (bao gồm audit, feedb
 }
 ```
 
-## 📊 Dashboard & Analytics APIs
+## 📊 Dashboard API
 
-### 1. Get Dashboard Statistics
-**GET** `/dashboard/statistics`
+> **🎯 4 widget tối ưu cho ATS**: Active Jobs, Applications Today, Applications by Status, Upcoming Interviews.
 
-Lấy thống kê tổng quan cho dashboard.
+**GET** `/dashboard/summary`
+
+Lấy dữ liệu cho 4 widget dashboard chính (scoped theo company).
 
 #### Request Headers
 ```
@@ -4075,157 +4078,71 @@ Authorization: Bearer <access_token>
 ```json
 {
   "success": true,
-  "message": "Dashboard statistics retrieved successfully",
+  "message": "Dashboard summary retrieved successfully",
   "data": {
-    "totalJobs": 25,
-    "jobsByStatus": {
-      "SAVED": 5,
-      "APPLIED": 15,
-      "INTERVIEW": 3,
-      "OFFER": 2,
-      "REJECTED": 8,
-      "WITHDRAWN": 1,
-      "ACCEPTED": 1
+    "activeJobs": {
+      "count": 12,
+      "changeFromLastMonth": 2
     },
-    "successRate": {
-      "applicationToInterview": 20.0,
-      "interviewToOffer": 66.7,
-      "applicationToOffer": 13.3
+    "applicationsToday": {
+      "count": 5,
+      "countYesterday": 3
     },
-    "recentActivity": [
+    "applicationsByStatus": [
       {
-        "id": "act1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-        "type": "JOB_CREATED",
-        "message": "Created new job application for Google",
-        "createdAt": "2024-01-15T10:30:00Z"
+        "statusId": "as1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+        "statusName": "NEW",
+        "displayName": "Mới",
+        "count": 25
       },
       {
-        "id": "act2b3c4d5-6e7f-8g9h-0i1j-k2l3m4n5o6p7",
-        "type": "INTERVIEW_SCHEDULED",
-        "message": "Interview scheduled for Microsoft",
-        "createdAt": "2024-01-15T09:00:00Z"
-      }
-    ],
-    "upcomingDeadlines": [
-      {
-        "jobId": "d7e6d2c9-0c6e-4ca8-bc52-2e95746bffc3",
-        "title": "Senior Java Developer",
-        "company": "Google",
-        "deadlineDate": "2024-01-25",
-        "daysRemaining": 10
-      }
-    ],
-    "topSkills": [
-      {
-        "skillId": "b7e58a6e-5c5e-4de8-9a3f-6b1ae2d042b5",
-        "skillName": "Java",
-        "count": 15,
-        "percentage": 60.0
+        "statusId": "as2b3c4d5-6e7f-8g9h-0i1j-k2l3m4n5o6p7",
+        "statusName": "SCREENING",
+        "displayName": "Sàng lọc",
+        "count": 10
       },
       {
-        "skillId": "c8f69b7f-6d6f-5ef9-0b4g-7c2bf3e153c6",
-        "skillName": "Spring Boot",
-        "count": 12,
-        "percentage": 48.0
-      }
-    ],
-    "monthlyApplications": [
-      {
-        "month": "2024-01",
-        "count": 8
+        "statusName": "INTERVIEWING",
+        "displayName": "Phỏng vấn",
+        "count": 5
       },
       {
-        "month": "2024-02",
-        "count": 12
-      }
-    ]
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-### 2. Get Job Analytics
-**GET** `/analytics/jobs`
-
-Lấy phân tích chi tiết về jobs.
-
-#### Request Headers
-```
-Authorization: Bearer <access_token>
-```
-
-#### Query Parameters
-```
-startDate=2024-01-01&endDate=2024-12-31&groupBy=month
-```
-
-#### Response (200 OK)
-```json
-{
-  "success": true,
-  "message": "Job analytics retrieved successfully",
-  "data": {
-    "timeline": [
-      {
-        "date": "2024-01",
-        "new": 45,
-        "screening": 20,
-        "interviewing": 15,
-        "offered": 5,
-        "hired": 8,
-        "rejected": 25
-      },
-      {
-        "date": "2024-02",
-        "new": 80,
-        "screening": 35,
-        "interviewing": 25,
-        "offered": 10,
-        "hired": 15,
-        "rejected": 45
+        "statusName": "OFFERED",
+        "displayName": "Đã đề xuất",
+        "count": 2
       }
     ],
-    "jobPostingStats": [
+    "upcomingInterviews": [
       {
-        "jobId": "d7e6d2c9-0c6e-4ca8-bc52-2e95746bffc3",
+        "id": "i1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
+        "candidateName": "Nguyễn Văn A",
         "jobTitle": "Senior Java Developer",
-        "totalApplications": 25,
-        "interviews": 10,
-        "offers": 3,
-        "hired": 2,
-        "conversionRate": 8.0
-      }
-    ],
-    "sourceStats": [
-      {
-        "source": "Email",
-        "totalApplications": 50,
-        "hired": 10,
-        "conversionRate": 20.0
+        "scheduledDate": "2024-01-16T09:00:00",
+        "durationMinutes": 60,
+        "interviewType": "TECHNICAL"
       },
       {
-        "source": "LinkedIn",
-        "totalApplications": 30,
-        "hired": 5,
-        "conversionRate": 16.7
-      }
-    ],
-    "skillStats": [
-      {
-        "skill": "Java",
-        "totalApplications": 45,
-        "successRate": 26.7
-      },
-      {
-        "skill": "React",
-        "totalJobs": 8,
-        "successRate": 37.5
+        "id": "i2b3c4d5-6e7f-8g9h-0i1j-k2l3m4n5o6p7",
+        "candidateName": "Trần Thị B",
+        "jobTitle": "Frontend Developer",
+        "scheduledDate": "2024-01-16T14:00:00",
+        "durationMinutes": 45,
+        "interviewType": "HR"
       }
     ]
   },
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+### Widget mô tả
+
+| Widget | Mô tả |
+|--------|-------|
+| **1. Active Jobs** | Số job đang tuyển (status PUBLISHED). `changeFromLastMonth`: so với tháng trước (↑/↓). |
+| **2. Applications Today** | Số CV mới hôm nay. `countYesterday`: so sánh với hôm qua. |
+| **3. Applications by Status** | Pipeline overview – số application theo từng status. Dùng cho chart donut/bar. |
+| **4. Upcoming Interviews** | 3–5 cuộc phỏng vấn sắp tới (sắp theo `scheduledDate`). |
 
 ## 🔔 Notification APIs (ATS) 🔄
 
