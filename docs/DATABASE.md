@@ -346,14 +346,14 @@ CREATE TABLE companies (
 ```sql
 CREATE TABLE subscription_plans (
     id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'UUID subscription plan',
-    code VARCHAR(50) NOT NULL UNIQUE COMMENT 'FREE, BASIC, PRO, ENTERPRISE, ...',
+    code VARCHAR(50) NOT NULL UNIQUE COMMENT 'FREE, PRO, ENTERPRISE, ...',
     name VARCHAR(100) NOT NULL COMMENT 'Tên gói hiển thị',
     price DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Giá gói',
-    duration_days INT NOT NULL COMMENT 'Thời lượng gói (ngày, 0 = không giới hạn)',
+    duration_days INT NOT NULL COMMENT 'Thời lượng gói (ngày)',
     
-    max_jobs INT COMMENT 'Số job tối đa',
-    max_users INT COMMENT 'Số user tối đa',
-    max_applications INT COMMENT 'Số application tối đa',
+    max_jobs INT COMMENT 'Số job tối đa (NULL = không giới hạn)',
+    max_users INT COMMENT 'Số user tối đa (NULL = không giới hạn)',
+    max_applications INT COMMENT 'Số application tối đa (NULL = không giới hạn)',
     
     is_active BOOLEAN DEFAULT TRUE COMMENT 'Gói đang hoạt động',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Thời gian tạo',
@@ -363,6 +363,18 @@ CREATE TABLE subscription_plans (
     INDEX idx_is_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
+
+#### 3.1.1. Seed mặc định cho subscription plans
+
+Backend seed sẵn 3 gói hệ thống (global) khi khởi tạo database lần đầu:
+
+| code       | name       | price    | duration_days | max_jobs | max_users | max_applications | Ghi chú                                |
+|-----------|------------|----------|---------------|----------|-----------|------------------|----------------------------------------|
+| `FREE`     | Miễn phí   | 0.00     | 30            | 3        | 1         | 200              | Gói dùng thử nhỏ, giới hạn mọi thứ     |
+| `PRO`      | Pro        | 299000.00| 30            | 29       | 10        | 5000             | Gói SME/Startup                        |
+| `ENTERPRISE` | Enterprise | 599000.00| 30            | NULL     | NULL      | NULL             | Gói không giới hạn (max\_* = NULL)     |
+
+Ngoài ra, công ty system admin mặc định sẽ được gán một `company_subscriptions` với plan `ENTERPRISE`, `status = ACTIVE`, `end_date = NULL` (thời hạn vô hạn) để không bị giới hạn bởi `PlanLimitService`.
 
 ### 3.2. Company Subscriptions Table (Bảng subscription theo thời gian cho company)
 

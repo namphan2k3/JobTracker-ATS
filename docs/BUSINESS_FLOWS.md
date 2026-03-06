@@ -819,6 +819,76 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 ---
 
+### 6.5.4. Default email templates (bilingual EN + VI)
+
+Để tránh mỗi môi trường phải tự tạo thủ công, hệ thống seed sẵn **global email templates** (company = `NULL`) cho toàn bộ `EmailType` đang dùng.  
+Tất cả template đều là **song ngữ Anh/Việt trong cùng email**, sử dụng đúng whitelist biến ở trên.
+
+- **APPLICATION_CONFIRMATION**
+  - **Subject**:  
+    - `"[{{company_name}}] Application received for {{job_title}} / Xác nhận nhận hồ sơ cho vị trí {{job_title}}"`
+  - **Body (tóm tắt)**:
+    - EN: Cảm ơn ứng viên, xác nhận đã nhận hồ sơ, nhắc lại `{{job_title}}`, `{{company_name}}` và đính kèm `{{application_link}}`.
+    - VI: Nội dung tương đương tiếng Việt ngay phía dưới đoạn tiếng Anh.
+
+- **INTERVIEW_SCHEDULED**
+  - **Subject**:  
+    - `"[{{company_name}}] Interview scheduled for {{job_title}} / Thư mời phỏng vấn vị trí {{job_title}}"`
+  - **Body**:
+    - EN: Thông báo lịch phỏng vấn với `{{interview_time}}`, `{{interview_location}}` hoặc `{{meeting_link}}`, ký tên `{{hr_name}}`.
+    - VI: Bản dịch tiếng Việt đầy đủ ở dưới, dùng cùng biến.
+
+- **INTERVIEW_RESCHEDULED**
+  - **Subject**:  
+    - `"[{{company_name}}] Interview rescheduled for {{job_title}} / Đổi lịch phỏng vấn vị trí {{job_title}}"`
+  - **Body**:
+    - EN: Thông báo lịch mới + lý do chung chung, giữ lại thông tin `{{interview_time}}`, `{{interview_location}}`, `{{meeting_link}}`.
+    - VI: Đoạn tiếng Việt mô tả lịch mới với cùng thông tin.
+
+- **CANDIDATE_REJECTED**
+  - **Subject**:  
+    - `"[{{company_name}}] Application update for {{job_title}} / Cập nhật kết quả ứng tuyển vị trí {{job_title}}"`
+  - **Body**:
+    - EN: Thông báo kết quả không phù hợp, cảm ơn ứng viên, có chỗ chèn `{{custom_message}}` nếu HR muốn cá nhân hóa.
+    - VI: Nội dung tiếng Việt tương đương, giải thích lịch sự, tôn trọng.
+
+- **CANDIDATE_HIRED**
+  - **Subject**:  
+    - `"[{{company_name}}] Congratulations on your new role: {{job_title}} / Chúc mừng trúng tuyển vị trí {{job_title}}"`
+  - **Body**:
+    - EN: Thông báo chúc mừng, nhấn mạnh `{{job_title}}`, `{{company_name}}`, ký tên `{{hr_name}}`, có thể thêm `{{custom_message}}`.
+    - VI: Đoạn chúc mừng tiếng Việt đầy đủ phía dưới.
+
+- **MANUAL_OFFER**
+  - **Subject**:  
+    - `"[{{company_name}}] Job offer for {{job_title}} / Thư mời làm việc vị trí {{job_title}}"`
+  - **Body**:
+    - EN: Tóm tắt offer với `{{offer_salary}}`, `{{offer_start_date}}`, `{{offer_expire_date}}` và phần `{{custom_message}}` cho điều khoản bổ sung.
+    - VI: Diễn giải lại đầy đủ bằng tiếng Việt với cùng biến.
+
+- **USER_INVITE / USER_INVITE_RESEND**
+  - **Subject**:  
+    - `"[{{company_name}}] You are invited to join JobTracker / Lời mời tham gia JobTracker của {{company_name}}"`
+  - **Body**:
+    - EN: Giới thiệu ngắn gọn, hướng dẫn click `{{invite_link}}` để tạo mật khẩu và đăng nhập.
+    - VI: Bản tiếng Việt ngay dưới, cùng đường dẫn `{{invite_link}}`.
+
+- **EMAIL_VERIFICATION / EMAIL_VERIFICATION_RESEND**
+  - **Subject**:  
+    - `"[{{company_name}}] Verify your email address / Xác thực địa chỉ email của bạn"`
+  - **Body**:
+    - EN: Hướng dẫn click `{{verification_link}}` để xác thực email.
+    - VI: Phiên bản tiếng Việt với cùng message và link.
+
+- **PASSWORD_RESET**
+  - **Subject**:  
+    - `"[{{company_name}}] Reset your password / Đặt lại mật khẩu JobTracker"`
+  - **Body**:
+    - EN: Hướng dẫn click `{{reset_link}}`, cảnh báo thời gian hết hạn.
+    - VI: Nội dung tiếng Việt tương tự, nhấn mạnh thời hạn link.
+
+Các template workflow cho candidate (APPLICATION_CONFIRMATION, INTERVIEW_SCHEDULED, INTERVIEW_RESCHEDULED, CANDIDATE_HIRED, CANDIDATE_REJECTED, MANUAL_OFFER) khi gửi thực tế sẽ được **wrap qua layout** `CANDIDATE_WORKFLOW_LAYOUT` để thêm header/footer và `{{application_link}}` theo mô tả ở trên.
+
 > Nhờ việc **khóa danh sách biến theo từng `email_type`**:
 > - Backend biết rõ biến nào **được phép** xuất hiện trong template.
 > - Validate được template trước khi lưu/gửi.
