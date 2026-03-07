@@ -2,6 +2,7 @@ package com.jobtracker.jobtracker_app.repositories;
 
 import com.jobtracker.jobtracker_app.entities.Job;
 import com.jobtracker.jobtracker_app.enums.JobStatus;
+import com.jobtracker.jobtracker_app.enums.JobType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -9,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface JobRepository extends JpaRepository<Job, String> {
@@ -36,6 +39,47 @@ public interface JobRepository extends JpaRepository<Job, String> {
     Optional<Job> findByIdAndDeletedAtIsNull(String id);
 
     Optional<Job> findByIdAndCompany_IdAndDeletedAtIsNull(String id, String companyId);
+
+    @EntityGraph(attributePaths = {"company"})
+    @Query("SELECT j FROM Job j " +
+            "WHERE j.jobStatus = 'PUBLISHED' " +
+            "AND j.deletedAt IS NULL " +
+            "AND j.company.deletedAt IS NULL " +
+            "AND j.company.isActive = true " +
+            "AND (j.deadlineDate IS NULL OR j.deadlineDate >= :today) " +
+            "AND (j.expiresAt IS NULL OR j.expiresAt >= :now) " +
+            "AND (:companyId IS NULL OR j.company.id = :companyId) " +
+            "AND (:jobType IS NULL OR j.jobType = :jobType) " +
+            "AND (:isRemote IS NULL OR j.isRemote = :isRemote) " +
+            "AND (:location IS NULL OR :location = '' OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%'))) " +
+            "AND (:search IS NULL OR :search = '' " +
+            "OR LOWER(j.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "OR LOWER(j.position) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Job> searchPublishedJobs(
+            @Param("companyId") String companyId,
+            @Param("jobType") JobType jobType,
+            @Param("isRemote") Boolean isRemote,
+            @Param("location") String location,
+            @Param("search") String search,
+            @Param("today") LocalDate today,
+            @Param("now") LocalDateTime now,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"company"})
+    @Query("SELECT j FROM Job j " +
+            "WHERE j.id = :id " +
+            "AND j.jobStatus = 'PUBLISHED' " +
+            "AND j.deletedAt IS NULL " +
+            "AND j.company.deletedAt IS NULL " +
+            "AND j.company.isActive = true " +
+            "AND (j.deadlineDate IS NULL OR j.deadlineDate >= :today) " +
+            "AND (j.expiresAt IS NULL OR j.expiresAt >= :now)")
+    Optional<Job> findPublishedJobById(
+            @Param("id") String id,
+            @Param("today") LocalDate today,
+            @Param("now") LocalDateTime now
+    );
 
     long countByCompany_IdAndDeletedAtIsNull(String companyId);
 

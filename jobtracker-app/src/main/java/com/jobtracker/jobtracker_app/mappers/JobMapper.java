@@ -8,12 +8,17 @@ import com.jobtracker.jobtracker_app.dto.responses.job.JobSkillCreationResponse;
 import com.jobtracker.jobtracker_app.dto.responses.job.JobSummaryResponse;
 import com.jobtracker.jobtracker_app.dto.responses.job.JobUpdateResponse;
 import com.jobtracker.jobtracker_app.dto.responses.job.JobUpdateStatusResponse;
+import com.jobtracker.jobtracker_app.dto.responses.job.PublicJobDetailResponse;
+import com.jobtracker.jobtracker_app.dto.responses.job.PublicJobListResponse;
+import com.jobtracker.jobtracker_app.dto.responses.job.PublicJobSkillResponse;
 import com.jobtracker.jobtracker_app.entities.Job;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
+
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface JobMapper {
@@ -36,6 +41,16 @@ public interface JobMapper {
     JobUpdateResponse toJobUpdateResponse(Job job);
 
     JobUpdateStatusResponse toJobUpdateStatusResponse(Job job);
+
+    @Mapping(source = "company.id", target = "companyId")
+    @Mapping(source = "company.name", target = "companyName")
+    PublicJobListResponse toPublicJobListResponse(Job job);
+
+    @Mapping(source = "company.id", target = "companyId")
+    @Mapping(source = "company.name", target = "companyName")
+    @Mapping(source = "company.website", target = "companyWebsite")
+    @Mapping(target = "skills", source = "skills")
+    PublicJobDetailResponse toPublicJobDetailResponse(Job job, List<PublicJobSkillResponse> skills);
 }
 
 

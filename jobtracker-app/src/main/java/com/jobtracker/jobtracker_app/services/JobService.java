@@ -11,6 +11,8 @@ public interface JobService {
     JobSummaryResponse create(JobCreationRequest request);
     JobResponse getById(String id);
     Page<JobSummaryResponse> getAllJobByCompany(JobFilterRequest request, Pageable pageable);
+    Page<PublicJobListResponse> getPublicJobs(PublicJobFilterRequest request, Pageable pageable);
+    PublicJobDetailResponse getPublicJobById(String id);
     JobUpdateResponse update(String id, JobUpdateRequest request);
     JobUpdateStatusResponse updateStatus(String id, JobUpdateStatusRequest request);
     void delete(String id);

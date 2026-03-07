@@ -21,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -113,6 +114,35 @@ public class JobServiceImpl implements JobService {
         Job job = getJobForCurrentCompanyOrThrow(id);
         job.softDelete();
         jobRepository.save(job);
+    }
+
+    @Override
+    public Page<PublicJobListResponse> getPublicJobs(PublicJobFilterRequest request, Pageable pageable) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+        return jobRepository.searchPublishedJobs(
+                request != null ? request.getCompanyId() : null,
+                request != null ? request.getJobType() : null,
+                request != null ? request.getIsRemote() : null,
+                request != null ? request.getLocation() : null,
+                request != null ? request.getSearch() : null,
+                today,
+                now,
+                pageable
+        ).map(jobMapper::toPublicJobListResponse);
+    }
+
+    @Override
+    public PublicJobDetailResponse getPublicJobById(String id) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+        Job job = jobRepository.findPublishedJobById(id, today, now)
+                .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_EXISTED));
+        List<PublicJobSkillResponse> skills = jobSkillRepository.findByJobIdWithSkill(job.getId())
+                .stream()
+                .map(jobSkillMapper::toPublicJobSkillResponse)
+                .toList();
+        return jobMapper.toPublicJobDetailResponse(job, skills);
     }
 
     @Override

@@ -31,13 +31,13 @@ public class JobCreationRequest {
     @Size(max = 255, message = "{job.location.size}")
     String location;
 
-    @DecimalMin(value = "0.0", message = "job.salary_min.min")
+    @DecimalMin(value = "0.0", message = "{job.salary_min.min}")
     BigDecimal salaryMin;
 
-    @DecimalMin(value = "0.0", message = "job.salary_max.min")
+    @DecimalMin(value = "0.0", message = "{job.salary_max.min}")
     BigDecimal salaryMax;
 
-    @Pattern(regexp = "USD|VND|EUR|GBP|JPY", message = "job.currency.pattern")
+    @Pattern(regexp = "USD|VND|EUR|GBP|JPY", message = "{job.currency.pattern}")
     String currency = "USD";
 
     JobStatus jobStatus = JobStatus.DRAFT;

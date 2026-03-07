@@ -224,6 +224,7 @@ public class MessageKeys {
 
     // APPLICATION STATUS
     public static final String APPLICATION_STATUS_NOT_EXISTED = "application_status.not_existed";
+    public static final String APPLICATION_STATUS_STATUS_TYPE_REQUIRED = "application_status.status_type_required";
     public static final String APPLICATION_STATUS_IS_TERMINAL = "application_status.is_terminal";
     public static final String APPLICATION_STATUS_SAME = "application_status.same";
     public static final String APPLICATION_STATUS_INVALID_TRANSITION = "application_status.invalid_transition";
