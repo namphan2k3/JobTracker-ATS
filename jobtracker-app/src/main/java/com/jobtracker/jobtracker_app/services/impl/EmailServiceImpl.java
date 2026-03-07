@@ -348,13 +348,9 @@ public class EmailServiceImpl implements EmailService {
     }
 
     private Map<String, Object> buildManualMap(String customMessage) {
-        if (customMessage == null || customMessage.isBlank()) {
-            return null;
-        }
-
         return Map.of(
                 ManualVariable.CUSTOM_MESSAGE.getKey(),
-                customMessage
+                customMessage == null ? "" : customMessage
         );
     }
 }

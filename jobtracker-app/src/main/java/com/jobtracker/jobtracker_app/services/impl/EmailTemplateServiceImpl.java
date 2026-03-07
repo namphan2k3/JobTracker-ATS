@@ -7,6 +7,7 @@ import com.jobtracker.jobtracker_app.entities.EmailTemplate;
 import com.jobtracker.jobtracker_app.entities.User;
 import com.jobtracker.jobtracker_app.enums.AggregateType;
 import com.jobtracker.jobtracker_app.enums.EmailType;
+import com.jobtracker.jobtracker_app.enums.SystemRole;
 import com.jobtracker.jobtracker_app.exceptions.AppException;
 import com.jobtracker.jobtracker_app.exceptions.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -95,8 +96,10 @@ public class EmailTemplateServiceImpl implements EmailTemplateService {
     @Transactional
     @PreAuthorize("hasAuthority('EMAIL_TEMPLATE_UPDATE')")
     public EmailTemplateResponse update(String id, EmailTemplateUpdateRequest request) {
+        User user = securityUtils.getCurrentUser();
         EmailTemplate template = getTemplateForCurrentCompanyOrThrow(id);
-        if (template.isGlobal()) {
+
+        if (template.isGlobal() && !user.getRole().getName().equals(SystemRole.SYSTEM_ADMIN.name())) {
             throw new AppException(ErrorCode.FORBIDDEN);
         }
 

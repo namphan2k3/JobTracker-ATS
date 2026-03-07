@@ -72,6 +72,20 @@ public class DataInitializer implements CommandLineRunner {
 
     @Transactional
     public void seedAdminUser() {
+        // System company
+        Company systemCompany = Company.builder()
+                .name("SYSTEM")
+                .website("https://system.local")
+                .industry("SYSTEM")
+                .size("ENTERPRISE")
+                .location("System")
+                .description("System internal company")
+                .isVerified(true)
+                .isActive(true)
+                .build();
+
+        companyRepository.save(systemCompany);
+
         // System level - Global
         Role systemAdminRole = new Role();
         systemAdminRole.setName("SYSTEM_ADMIN");
@@ -98,6 +112,7 @@ public class DataInitializer implements CommandLineRunner {
         admin.setFirstName("Admin");
         admin.setLastName("User");
         admin.setRole(systemAdminRole);
+        admin.setCompany(systemCompany);
         admin.setEmailVerified(true);
         userRepository.save(admin);
 
@@ -223,17 +238,17 @@ public class DataInitializer implements CommandLineRunner {
             String systemUser = "system";
 
             List<ApplicationStatus> statuses = List.of(
-                    createApplicationStatus("NEW", "Mới", "Ứng viên vừa nộp đơn", "#6B7280", 1,
+                    createApplicationStatus("applied", "Applied", "Candidate just applied", "#6B7280", 1,
                             StatusType.APPLIED, false, true, systemUser),
-                    createApplicationStatus("SCREENING", "Sàng lọc", "Đang sàng lọc hồ sơ", "#3B82F6", 2,
+                    createApplicationStatus("screening", "Screening", "Screening in progress", "#3B82F6", 2,
                             StatusType.SCREENING, false, false, systemUser),
-                    createApplicationStatus("INTERVIEWING", "Phỏng vấn", "Đang trong quá trình phỏng vấn", "#F59E0B", 3,
+                    createApplicationStatus("interview", "Interview", "In interview process", "#F59E0B", 3,
                             StatusType.INTERVIEW, false, false, systemUser),
-                    createApplicationStatus("OFFERED", "Đã đề xuất", "Đã gửi offer cho ứng viên", "#8B5CF6", 4,
+                    createApplicationStatus("offer", "Offer", "Offer sent to candidate", "#8B5CF6", 4,
                             StatusType.OFFER, false, false, systemUser),
-                    createApplicationStatus("HIRED", "Đã tuyển", "Ứng viên đã được tuyển", "#10B981", 5,
+                    createApplicationStatus("hired", "Hired", "Candidate hired", "#10B981", 5,
                             StatusType.HIRED, true, false, systemUser),
-                    createApplicationStatus("REJECTED", "Từ chối", "Ứng viên bị từ chối", "#EF4444", 6,
+                    createApplicationStatus("rejected", "Rejected", "Candidate rejected", "#EF4444", 6,
                             StatusType.REJECTED, true, false, systemUser)
             );
             
@@ -269,50 +284,41 @@ public class DataInitializer implements CommandLineRunner {
 
     @Transactional
     public void seedEmailTemplates() {
-        log.info("Seeding default global email templates (bilingual EN + VI) if missing...");
+        log.info("Seeding default global email templates (Vietnamese only) if missing...");
 
         // Layout template for candidate workflow emails
+        // {{{content}}} = unescaped HTML (Mustache triple-stash) - content phải render HTML, không escape
+        // Không dùng header h1 company_name to đùng - chỉ content + footer
         createTemplateIfNotExists(
                 EmailType.CANDIDATE_WORKFLOW_LAYOUT,
                 "Candidate workflow layout",
                 "{{company_name}} - Candidate workflow email",
                 """
                         <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 640px; margin: 0 auto;">
-                            <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-                                <h1 style="font-size: 20px; margin: 0; color: #111827;">{{company_name}}</h1>
-                            </div>
                             <div style="padding: 24px 24px 16px 24px;">
-                                {{content}}
+                                {{{content}}}
                             </div>
                             <div style="padding: 16px 24px 24px 24px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb;">
                                 <p style="margin: 0 0 8px 0;">
-                                    You can check your application status here /
                                     Bạn có thể xem trạng thái hồ sơ tại đây:
                                 </p>
                                 <p style="margin: 0 0 8px 0;">
                                     <a href="{{application_link}}" style="color: #2563eb;">{{application_link}}</a>
                                 </p>
                                 <p style="margin: 0;">
-                                    This email was sent by {{company_name}} via JobTracker ATS.
+                                    Email này được gửi bởi {{company_name}} qua JobTracker ATS.
                                 </p>
                             </div>
                         </div>
                         """
         );
 
-        // User & Auth emails
+        // User & Auth emails (tiếng Việt)
         createTemplateIfNotExists(
                 EmailType.USER_INVITE,
-                "User invite (EN/VI)",
-                "[{{company_name}}] You are invited to join JobTracker / Lời mời tham gia JobTracker của {{company_name}}",
+                "User invite (VI)",
+                "[{{company_name}}] Lời mời tham gia JobTracker",
                 """
-                        <p>Hi {{user_first_name}} {{user_last_name}},</p>
-                        <p>You have been invited to join <strong>{{company_name}}</strong> on JobTracker.</p>
-                        <p>Please click the link below to accept the invitation and set your password:</p>
-                        <p><a href="{{invite_link}}">{{invite_link}}</a></p>
-                        <p>If you did not expect this email, you can safely ignore it.</p>
-                        <p>Best regards,<br/>{{company_name}}</p>
-                        <hr/>
                         <p>Chào {{user_first_name}} {{user_last_name}},</p>
                         <p>Bạn được mời tham gia <strong>{{company_name}}</strong> trên hệ thống JobTracker.</p>
                         <p>Vui lòng nhấn vào đường dẫn dưới đây để chấp nhận lời mời và tạo mật khẩu đăng nhập:</p>
@@ -324,15 +330,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.USER_INVITE_RESEND,
-                "User invite resend (EN/VI)",
-                "[{{company_name}}] Reminder: invitation to join JobTracker / Nhắc lại lời mời tham gia JobTracker của {{company_name}}",
+                "User invite resend (VI)",
+                "[{{company_name}}] Nhắc lại lời mời tham gia JobTracker",
                 """
-                        <p>Hi {{user_first_name}} {{user_last_name}},</p>
-                        <p>This is a reminder that you have been invited to join <strong>{{company_name}}</strong> on JobTracker.</p>
-                        <p>You can accept the invitation and set your password using the link below:</p>
-                        <p><a href="{{invite_link}}">{{invite_link}}</a></p>
-                        <p>Best regards,<br/>{{company_name}}</p>
-                        <hr/>
                         <p>Chào {{user_first_name}} {{user_last_name}},</p>
                         <p>Đây là email nhắc lại rằng bạn đã được mời tham gia <strong>{{company_name}}</strong> trên JobTracker.</p>
                         <p>Bạn có thể chấp nhận lời mời và tạo mật khẩu đăng nhập qua đường dẫn sau:</p>
@@ -343,16 +343,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.EMAIL_VERIFICATION,
-                "Email verification (EN/VI)",
-                "[{{company_name}}] Verify your email address / Xác thực địa chỉ email của bạn",
+                "Email verification (VI)",
+                "[{{company_name}}] Xác thực địa chỉ email của bạn",
                 """
-                        <p>Hi {{user_first_name}} {{user_last_name}},</p>
-                        <p>Thank you for registering with <strong>{{company_name}}</strong> on JobTracker.</p>
-                        <p>Please click the link below to verify your email address:</p>
-                        <p><a href="{{verification_link}}">{{verification_link}}</a></p>
-                        <p>If you did not create this account, you can safely ignore this email.</p>
-                        <p>Best regards,<br/>{{company_name}}</p>
-                        <hr/>
                         <p>Chào {{user_first_name}} {{user_last_name}},</p>
                         <p>Cảm ơn bạn đã đăng ký tài khoản cho <strong>{{company_name}}</strong> trên JobTracker.</p>
                         <p>Vui lòng nhấn vào đường dẫn dưới đây để xác thực địa chỉ email của bạn:</p>
@@ -364,15 +357,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.EMAIL_VERIFICATION_RESEND,
-                "Email verification resend (EN/VI)",
-                "[{{company_name}}] Reminder: verify your email / Nhắc lại xác thực email của bạn",
+                "Email verification resend (VI)",
+                "[{{company_name}}] Nhắc lại xác thực email của bạn",
                 """
-                        <p>Hi {{user_first_name}} {{user_last_name}},</p>
-                        <p>This is a reminder to verify your email address for your <strong>{{company_name}}</strong> account on JobTracker.</p>
-                        <p>Please use the link below to complete verification:</p>
-                        <p><a href="{{verification_link}}">{{verification_link}}</a></p>
-                        <p>Best regards,<br/>{{company_name}}</p>
-                        <hr/>
                         <p>Chào {{user_first_name}} {{user_last_name}},</p>
                         <p>Đây là email nhắc lại để bạn hoàn tất việc xác thực địa chỉ email cho tài khoản <strong>{{company_name}}</strong> trên JobTracker.</p>
                         <p>Vui lòng sử dụng đường dẫn sau để xác thực:</p>
@@ -383,16 +370,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.PASSWORD_RESET,
-                "Password reset (EN/VI)",
-                "[{{company_name}}] Reset your password / Đặt lại mật khẩu JobTracker",
+                "Password reset (VI)",
+                "[{{company_name}}] Đặt lại mật khẩu JobTracker",
                 """
-                        <p>Hi {{user_first_name}} {{user_last_name}},</p>
-                        <p>We received a request to reset the password for your account at <strong>{{company_name}}</strong> on JobTracker.</p>
-                        <p>If you made this request, please click the link below to set a new password:</p>
-                        <p><a href="{{reset_link}}">{{reset_link}}</a></p>
-                        <p>If you did not request a password reset, you can safely ignore this email.</p>
-                        <p>Best regards,<br/>{{company_name}}</p>
-                        <hr/>
                         <p>Chào {{user_first_name}} {{user_last_name}},</p>
                         <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn tại <strong>{{company_name}}</strong> trên JobTracker.</p>
                         <p>Nếu đây là yêu cầu từ bạn, vui lòng nhấn vào đường dẫn dưới đây để đặt mật khẩu mới:</p>
@@ -405,15 +385,9 @@ public class DataInitializer implements CommandLineRunner {
         // Application workflow emails
         createTemplateIfNotExists(
                 EmailType.APPLICATION_CONFIRMATION,
-                "Application confirmation (EN/VI)",
-                "[{{company_name}}] Application received for {{job_title}} / Xác nhận nhận hồ sơ cho vị trí {{job_title}}",
+                "Application confirmation (VI)",
+                "[{{company_name}}] Xác nhận nhận hồ sơ cho vị trí {{job_title}}",
                 """
-                        <p>Hi {{candidate_name}},</p>
-                        <p>Thank you for applying for the position <strong>{{job_title}}</strong> at <strong>{{company_name}}</strong>. We have received your application and our team will review your profile soon.</p>
-                        <p>You can track the status of your application at any time using the following link:</p>
-                        <p><a href="{{application_link}}">{{application_link}}</a></p>
-                        <p>Best regards,<br/>{{company_name}}</p>
-                        <hr/>
                         <p>Chào {{candidate_name}},</p>
                         <p>Cảm ơn bạn đã ứng tuyển vị trí <strong>{{job_title}}</strong> tại <strong>{{company_name}}</strong>. Chúng tôi đã nhận được hồ sơ của bạn và đội ngũ tuyển dụng sẽ sớm xem xét.</p>
                         <p>Bạn có thể theo dõi trạng thái hồ sơ bất cứ lúc nào qua đường dẫn sau:</p>
@@ -424,17 +398,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.INTERVIEW_SCHEDULED,
-                "Interview scheduled (EN/VI)",
-                "[{{company_name}}] Interview scheduled for {{job_title}} / Thư mời phỏng vấn vị trí {{job_title}}",
+                "Interview scheduled (VI)",
+                "[{{company_name}}] Thư mời phỏng vấn vị trí {{job_title}}",
                 """
-                        <p>Hi {{candidate_name}},</p>
-                        <p>We are pleased to invite you to an interview for the position <strong>{{job_title}}</strong> at <strong>{{company_name}}</strong>.</p>
-                        <p><strong>Time:</strong> {{interview_time}}<br/>
-                        <strong>Location:</strong> {{interview_location}}<br/>
-                        <strong>Meeting link:</strong> <a href="{{meeting_link}}">{{meeting_link}}</a></p>
-                        <p>{{custom_message}}</p>
-                        <p>Best regards,<br/>{{hr_name}} - {{company_name}}</p>
-                        <hr/>
                         <p>Chào {{candidate_name}},</p>
                         <p>Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn cho vị trí <strong>{{job_title}}</strong> tại <strong>{{company_name}}</strong>.</p>
                         <p><strong>Thời gian:</strong> {{interview_time}}<br/>
@@ -447,17 +413,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.INTERVIEW_RESCHEDULED,
-                "Interview rescheduled (EN/VI)",
-                "[{{company_name}}] Interview rescheduled for {{job_title}} / Đổi lịch phỏng vấn vị trí {{job_title}}",
+                "Interview rescheduled (VI)",
+                "[{{company_name}}] Đổi lịch phỏng vấn vị trí {{job_title}}",
                 """
-                        <p>Hi {{candidate_name}},</p>
-                        <p>We would like to inform you that your interview for the position <strong>{{job_title}}</strong> at <strong>{{company_name}}</strong> has been rescheduled.</p>
-                        <p><strong>New time:</strong> {{interview_time}}<br/>
-                        <strong>Location:</strong> {{interview_location}}<br/>
-                        <strong>Meeting link:</strong> <a href="{{meeting_link}}">{{meeting_link}}</a></p>
-                        <p>{{custom_message}}</p>
-                        <p>Best regards,<br/>{{hr_name}} - {{company_name}}</p>
-                        <hr/>
                         <p>Chào {{candidate_name}},</p>
                         <p>Chúng tôi xin thông báo buổi phỏng vấn cho vị trí <strong>{{job_title}}</strong> tại <strong>{{company_name}}</strong> đã được <strong>đổi lịch</strong>.</p>
                         <p><strong>Thời gian mới:</strong> {{interview_time}}<br/>
@@ -470,16 +428,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.CANDIDATE_REJECTED,
-                "Candidate rejected (EN/VI)",
-                "[{{company_name}}] Application update for {{job_title}} / Cập nhật kết quả ứng tuyển vị trí {{job_title}}",
+                "Candidate rejected (VI)",
+                "[{{company_name}}] Cập nhật kết quả ứng tuyển vị trí {{job_title}}",
                 """
-                        <p>Hi {{candidate_name}},</p>
-                        <p>Thank you for your interest in the position <strong>{{job_title}}</strong> at <strong>{{company_name}}</strong>.</p>
-                        <p>After careful consideration, we regret to inform you that we will not be moving forward with your application at this time.</p>
-                        <p>{{custom_message}}</p>
-                        <p>We truly appreciate the time you invested and wish you all the best in your job search.</p>
-                        <p>Best regards,<br/>{{hr_name}} - {{company_name}}</p>
-                        <hr/>
                         <p>Chào {{candidate_name}},</p>
                         <p>Cảm ơn bạn đã quan tâm và ứng tuyển vị trí <strong>{{job_title}}</strong> tại <strong>{{company_name}}</strong>.</p>
                         <p>Sau khi xem xét kỹ lưỡng, rất tiếc chúng tôi chưa thể tiếp tục hồ sơ của bạn cho vị trí này.</p>
@@ -491,15 +442,9 @@ public class DataInitializer implements CommandLineRunner {
 
         createTemplateIfNotExists(
                 EmailType.CANDIDATE_HIRED,
-                "Candidate hired (EN/VI)",
-                "[{{company_name}}] Congratulations on your new role: {{job_title}} / Chúc mừng trúng tuyển vị trí {{job_title}}",
+                "Candidate hired (VI)",
+                "[{{company_name}}] Chúc mừng trúng tuyển vị trí {{job_title}}",
                 """
-                        <p>Hi {{candidate_name}},</p>
-                        <p>Congratulations! We are delighted to offer you the position of <strong>{{job_title}}</strong> at <strong>{{company_name}}</strong>.</p>
-                        <p>{{custom_message}}</p>
-                        <p>We look forward to working with you.</p>
-                        <p>Best regards,<br/>{{hr_name}} - {{company_name}}</p>
-                        <hr/>
                         <p>Chào {{candidate_name}},</p>
                         <p>Chúc mừng bạn! Chúng tôi rất vui được thông báo bạn đã <strong>trúng tuyển</strong> vị trí <strong>{{job_title}}</strong> tại <strong>{{company_name}}</strong>.</p>
                         <p>{{custom_message}}</p>
@@ -511,14 +456,9 @@ public class DataInitializer implements CommandLineRunner {
         // Auto-offer email (system-generated)
         createTemplateIfNotExists(
                 EmailType.OFFER_CREATED,
-                "Offer created (EN/VI)",
-                "[{{company_name}}] Offer created for {{job_title}} / Đã tạo offer cho vị trí {{job_title}}",
+                "Offer created (VI)",
+                "[{{company_name}}] Đã tạo offer cho vị trí {{job_title}}",
                 """
-                        <p>Hi {{candidate_name}},</p>
-                        <p>We have created an offer for the position <strong>{{job_title}}</strong> at <strong>{{company_name}}</strong>.</p>
-                        <p>Our team will reach out to you shortly with the full details.</p>
-                        <p>Best regards,<br/>{{hr_name}} - {{company_name}}</p>
-                        <hr/>
                         <p>Chào {{candidate_name}},</p>
                         <p>Chúng tôi đã tạo offer cho vị trí <strong>{{job_title}}</strong> tại <strong>{{company_name}}</strong>.</p>
                         <p>Đội ngũ tuyển dụng sẽ sớm liên hệ lại với bạn với đầy đủ thông tin chi tiết.</p>
@@ -529,18 +469,9 @@ public class DataInitializer implements CommandLineRunner {
         // Manual offer email
         createTemplateIfNotExists(
                 EmailType.MANUAL_OFFER,
-                "Job offer (EN/VI)",
-                "[{{company_name}}] Job offer for {{job_title}} / Thư mời làm việc vị trí {{job_title}}",
+                "Job offer (VI)",
+                "[{{company_name}}] Thư mời làm việc vị trí {{job_title}}",
                 """
-                        <p>Hi {{candidate_name}},</p>
-                        <p>We are pleased to extend to you an offer for the position <strong>{{job_title}}</strong> at <strong>{{company_name}}</strong>.</p>
-                        <p><strong>Offer salary:</strong> {{offer_salary}}<br/>
-                        <strong>Start date:</strong> {{offer_start_date}}<br/>
-                        <strong>Offer valid until:</strong> {{offer_expire_date}}</p>
-                        <p>{{custom_message}}</p>
-                        <p>Please let us know if you have any questions regarding this offer.</p>
-                        <p>Best regards,<br/>{{hr_name}} - {{company_name}}</p>
-                        <hr/>
                         <p>Chào {{candidate_name}},</p>
                         <p>Chúng tôi trân trọng gửi đến bạn <strong>thư mời làm việc</strong> cho vị trí <strong>{{job_title}}</strong> tại <strong>{{company_name}}</strong>.</p>
                         <p><strong>Mức lương đề xuất:</strong> {{offer_salary}}<br/>
