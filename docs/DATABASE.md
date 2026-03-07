@@ -71,6 +71,16 @@ JobTracker ATS (Applicant Tracking System) sử dụng **MySQL 8.0** làm databa
 - `MEDIUM` - Ưu tiên trung bình
 - `LOW` - Ưu tiên thấp
 
+### 7b. Application Status Type (enum ứng dụng, lưu dạng VARCHAR) (`application_statuses.status_type`)
+- `APPLIED` - Ứng viên vừa nộp đơn (order: 1)
+- `SCREENING` - Đang sàng lọc (order: 2)
+- `INTERVIEW` - Đang phỏng vấn (order: 3)
+- `OFFER` - Đã gửi offer (order: 4)
+- `HIRED` - Đã tuyển (order: 5, terminal)
+- `REJECTED` - Đã từ chối (order: 99, terminal)
+
+> Thứ tự logic (`type_order`) được giữ trong Java enum `StatusType` (`com.jobtracker.jobtracker_app.enums.StatusType`), không lưu trong DB.
+
 ### 8. Attachment Type (enum ứng dụng, lưu dạng VARCHAR) (`attachments.attachment_type`)
 - `RESUME` - CV/Resume
 - `COVER_LETTER` - Thư xin việc

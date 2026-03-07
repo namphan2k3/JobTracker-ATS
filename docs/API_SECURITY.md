@@ -29,6 +29,8 @@ These endpoints do **not** require `Authorization: Bearer <token>`.
 
 | Method | Endpoint                                              | Description                                                       |
 | ------ | ----------------------------------------------------- | ----------------------------------------------------------------- |
+| GET    | `/public/jobs`                                        | List jobs đang tuyển (career page, job board) — filter: companyId, search, jobType, isRemote, location |
+| GET    | `/public/jobs/{id}`                                   | Chi tiết job đang tuyển (trước khi apply)                         |
 | POST   | `/public/jobs/{jobId}/apply`                          | Candidate apply (form-data: name, email, phone, CV, cover letter) |
 | GET    | `/public/applications/{applicationToken}/status`      | Candidate track status (no login)                                 |
 | POST   | `/public/applications/{applicationToken}/attachments` | Candidate upload attachments (certificates, portfolio)            |
@@ -113,6 +115,7 @@ All endpoints below require `Authorization: Bearer <accessToken>`. Data is scope
 
 | Method | Endpoint                                   | Permission       |
 | ------ | ------------------------------------------ | ---------------- |
+| GET    | `/interviews`                              | INTERVIEW_READ   | List interviews của company (filter: applicationId, jobId, interviewerId, from, to, status). Company từ JWT. |
 | GET    | `/applications/{applicationId}/interviews` | INTERVIEW_READ   |
 | POST   | `/applications/{applicationId}/interviews` | INTERVIEW_CREATE |
 | GET    | `/interviews/{id}`                         | INTERVIEW_READ   |

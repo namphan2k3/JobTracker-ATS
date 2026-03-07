@@ -1219,12 +1219,122 @@ Authorization: Bearer <access_token>
 
 ## 📝 Applications Management APIs (CORE ATS) ➕
 
-> **🔑 CORE**: Applications là core entity của ATS. **Modern ATS = Candidate Self-Service Portal**: Candidates tự apply online qua trang công ty mà không cần login. HR/Recruiter quản lý applications qua workflow (NEW → SCREENING → INTERVIEWING → OFFERED → HIRED/REJECTED).
+> **🔑 CORE**: Applications là core entity của ATS. **Modern ATS = Candidate Self-Service Portal**: Candidates tự apply online qua trang công ty mà không cần login. HR/Recruiter quản lý applications qua workflow (APPLIED → SCREENING → INTERVIEW → OFFER → HIRED/REJECTED).
 > 
 > **Workflow chính**: Candidate Self-Service (apply online, upload CV/attachments)  
 > **Workflow phụ**: HR manual upload (khi nhận CV qua email)
 
 ### 🔓 Public APIs (Candidate Self-Service - Không cần Authentication)
+
+#### 0. Get Public Jobs (List - Career Page / Job Board)
+**GET** `/public/jobs`
+
+Lấy danh sách job **đang tuyển** (PUBLISHED, chưa hết hạn). Dùng cho career page, job board — **không cần login**.
+
+> **📌 Phân tích thiết kế**
+>
+> **Tại sao public?**
+> - Candidate cần **xem tin tuyển** trước khi apply. Nếu bắt login mới xem → friction cao, mất ứng viên.
+> - Career page của công ty thường public: `/careers` hoặc `/jobs` — embed từ API này.
+> - Job board tổng hợp (nhiều công ty) cũng dùng API này với filter `companyId` (optional).
+>
+> **Khác gì GET /jobs (private)?**
+> | | **GET /jobs** (private) | **GET /public/jobs** (public) |
+> |--|------------------------|-------------------------------|
+> | Auth | Cần JWT | Không cần |
+> | Scope | Chỉ company của user (multi-tenant) | Tất cả company (hoặc filter companyId) |
+> | Job status | DRAFT, PUBLISHED, PAUSED, CLOSED, FILLED | **Chỉ PUBLISHED** |
+> | Điều kiện | deleted_at IS NULL | + deadline chưa hết, expires_at chưa hết, company active |
+> | Response | jobStatus, applicationsCount, audit fields | **Không có** — chỉ thông tin candidate cần |
+>
+> **Bảo mật & privacy**
+> - Không trả: `userId`, `createdBy`, `updatedBy`, `deletedAt`, `jobStatus` (nội bộ)
+> - Không trả: `applicationsCount`, `viewsCount` (tuỳ product — có thể expose cho social proof)
+> - Chỉ trả: title, position, location, salary, description, benefits, companyName, skills — đủ để candidate quyết định apply
+
+#### Request (Query params - tất cả optional)
+| Param | Type | Mô tả |
+|-------|------|-------|
+| `companyId` | string | Lọc job của 1 công ty (career page) |
+| `search` | string | Tìm theo title, position |
+| `jobType` | enum | FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, FREELANCE |
+| `isRemote` | boolean | Lọc remote |
+| `location` | string | Địa điểm (contains) |
+| `page` | int | Trang (default 0) |
+| `size` | int | Số item/trang (default 20) |
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Jobs retrieved successfully",
+  "data": [
+    {
+      "id": "job-uuid",
+      "title": "Senior Backend Engineer",
+      "position": "Backend Developer",
+      "jobType": "FULL_TIME",
+      "location": "Ho Chi Minh City",
+      "salaryMin": 30000000,
+      "salaryMax": 50000000,
+      "currency": "VND",
+      "deadlineDate": "2024-02-15",
+      "companyId": "company-uuid",
+      "companyName": "Acme Corp",
+      "publishedAt": "2024-01-10T09:00:00",
+      "isRemote": false,
+      "jobUrl": "https://careers.acme.com/jobs/123"
+    }
+  ],
+  "paginationInfo": {
+    "page": 0,
+    "size": 20,
+    "totalElements": 45,
+    "totalPages": 3
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### 0b. Get Public Job Detail
+**GET** `/public/jobs/{id}`
+
+Chi tiết 1 job đang tuyển — dùng cho trang job detail trước khi apply.
+
+> **Điều kiện**: Job phải PUBLISHED, chưa hết hạn, company active. Nếu không → 404.
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "Job detail retrieved successfully",
+  "data": {
+    "id": "job-uuid",
+    "title": "Senior Backend Engineer",
+    "position": "Backend Developer",
+    "jobType": "FULL_TIME",
+    "location": "Ho Chi Minh City",
+    "salaryMin": 30000000,
+    "salaryMax": 50000000,
+    "currency": "VND",
+    "deadlineDate": "2024-02-15",
+    "companyId": "company-uuid",
+    "companyName": "Acme Corp",
+    "companyWebsite": "https://acme.com",
+    "publishedAt": "2024-01-10T09:00:00",
+    "isRemote": false,
+    "jobUrl": "https://careers.acme.com/jobs/123",
+    "jobDescription": "We are looking for...",
+    "requirements": "5+ years experience...",
+    "benefits": "Competitive salary, health insurance...",
+    "skills": [
+      {"name": "Java", "isRequired": true, "proficiencyLevel": "ADVANCED"},
+      {"name": "Spring Boot", "isRequired": true, "proficiencyLevel": "INTERMEDIATE"}
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
 
 #### 1. Apply to Job (Public - Candidate Self-Service)
 **POST** `/public/jobs/{jobId}/apply`
@@ -1251,7 +1361,7 @@ resume: <file> (PDF - max 5B) [REQUIRED]
 > **Lưu ý về Attachments:**
 > - ✅ **Khi apply**: Chỉ upload CV (resume) - đây là bắt buộc
 > - ❌ **Không upload** certificates/portfolio khi apply lần đầu
-> - 📋 **Sau khi apply**: Nếu HR yêu cầu thêm documents (khi status = SCREENING/INTERVIEWING), candidate sẽ upload qua API `/public/applications/{applicationToken}/attachments`
+> - 📋 **Sau khi apply**: Nếu HR yêu cầu thêm documents (khi status = screening/interview), candidate sẽ upload qua API `/public/applications/{applicationToken}/attachments`
 
 #### Response (201 Created)
 ```json
@@ -1266,12 +1376,12 @@ resume: <file> (PDF - max 5B) [REQUIRED]
 > **Lưu ý**: 
 > - Response đơn giản, không expose thông tin không cần thiết
 > - Candidate đã biết jobTitle, candidateName, email (họ vừa submit)
-> - Application được tạo với `status = NEW` tự động
+> - Application được tạo với `status = applied` (default) tự động
 > - Email confirmation được gửi sau đó với `applicationToken` để candidate track status
 > - CV scoring được xử lý trong background (2-3 giây), không cần trả về trong response
 
 > **Lưu ý**: 
-> - Application được tạo với `status = NEW` tự động
+> - Application được tạo với `status = applied` (default) tự động
 > - `created_by` = NULL (candidate không có account)
 > - Email confirmation được gửi đến candidate
 > - Application token cho phép candidate track status mà không cần login
@@ -1303,13 +1413,13 @@ Candidates chỉ có thể upload thêm attachments (certificates, portfolio) **
 > 📋 **Business Logic - Chỉ cho phép upload khi HR đã yêu cầu:**
 > 
 > **Điều kiện upload:**
-> - ✅ Application status phải là: `SCREENING` hoặc `INTERVIEWING` (HR đang review)
+> - ✅ Application status phải là: `screening` hoặc `interview` (HR đang review)
 > - ✅ **VÀ** `allow_additional_uploads = true` (HR đã set flag yêu cầu documents)
 > 
 > **Workflow:**
 > 1. Candidate apply → Upload CV (RESUME) - **Bắt buộc khi apply**
 >    - `allow_additional_uploads = false` (mặc định)
-> 2. HR review → Status chuyển sang SCREENING/INTERVIEWING
+> 2. HR review → Status chuyển sang screening/interview
 > 3. HR yêu cầu thêm documents → Set `allow_additional_uploads = true` (qua API hoặc UI)
 >    - HR có thể set flag này khi:
 >      - Comment với `requestDocuments = true`
@@ -1320,7 +1430,7 @@ Candidates chỉ có thể upload thêm attachments (certificates, portfolio) **
 > **Lý do**: 
 > - Tránh spam upload, chỉ upload khi HR thực sự yêu cầu
 > - HR có control hoàn toàn về việc khi nào cho phép upload
-> - Candidate không thể tự ý upload khi chỉ thấy status = SCREENING/INTERVIEWING
+> - Candidate không thể tự ý upload khi chỉ thấy status = screening/interview
 
 #### Request Headers
 ```
@@ -1368,15 +1478,15 @@ description: "AWS Certification"
 }
 ```
 
-**403 Forbidden** - Status không đúng (không phải SCREENING/INTERVIEWING)
+**403 Forbidden** - Status không đúng (không phải SCREENING/INTERVIEW)
 ```json
 {
   "success": false,
-  "message": "Cannot upload attachments. Application status must be SCREENING or INTERVIEWING.",
+  "message": "Upload is not allowed for this application",
   "errors": [
     {
       "field": "applicationStatus",
-      "message": "Attachments can only be uploaded when application status is SCREENING or INTERVIEWING. Current status: OFFERED"
+      "message": "Attachments can only be uploaded when application status is SCREENING or INTERVIEW (e.g. screening, interview). Current status: offer"
     }
   ],
   "timestamp": "2024-01-15T10:30:00Z"
@@ -1455,7 +1565,7 @@ page=0&size=20&sort=appliedDate,desc&status=NEW&jobId=xxx&assignedTo=xxx&search=
 - `size`: Page size (default: 20)
 - `sort`: Sort field và direction (default: `appliedDate,desc`)
   - Available fields: `appliedDate`, `matchScore`, `candidateName`, `createdAt`
-- `status`: Filter by application status (NEW, SCREENING, INTERVIEWING, etc.)
+- `status`: Filter by application status name (applied, screening, interview, offer, hired, rejected)
 - `jobId`: Filter by job ID
 - `assignedTo`: Filter by assigned HR/Recruiter user ID
 - `search`: Search by candidate name or email
@@ -1647,7 +1757,7 @@ HR/Recruiter tạo application thủ công khi nhận CV qua email. Đây là **
 ### 4. Update Application Status
 **PATCH** `/applications/{id}/status`
 
-Cập nhật status của application (workflow: NEW → SCREENING → INTERVIEWING → OFFERED → HIRED/REJECTED).
+Cập nhật status của application (workflow: APPLIED → SCREENING → INTERVIEW → OFFER → HIRED/REJECTED).
 
 #### Request Body
 ```json
@@ -1665,7 +1775,7 @@ Cập nhật status của application (workflow: NEW → SCREENING → INTERVIEW
   "data": {
     "id": "app1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
     "statusId": "status2a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-    "previousStatus": "NEW",
+    "previousStatus": "applied",
     "notes": "Moved to screening phase",
     "updatedAt": "2024-01-15T10:30:00Z"
   },
@@ -2566,7 +2676,7 @@ Lấy lịch sử payments cho một bản ghi subscription cụ thể.
 > - **Attachment Types** → Field `attachments.attachmentType` (VARCHAR, các giá trị cố định: RESUME, COVER_LETTER, CERTIFICATE, PORTFOLIO, OTHER)
 
 > **✅ LOOKUP TABLE**: Application Statuses giữ lại lookup table vì cần metadata (display_name, color, sort_order) và flexibility:
-> - **Application Statuses** → Lookup table `application_statuses` (NEW, SCREENING, INTERVIEWING, OFFERED, HIRED, REJECTED)
+> - **Application Statuses** → Lookup table `application_statuses` (name: applied, screening, interview, offer, hired, rejected; status_type: APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED)
 
 ### ~~1. Get Job Statuses~~ ❌ **CHUYỂN SANG ENUM**
 
@@ -2607,10 +2717,12 @@ Lấy lịch sử payments cho một bản ghi subscription cụ thể.
 ### 10. Get Application Statuses ✅
 **GET** `/admin/application-statuses`
 
-Lấy danh sách application statuses của **company hiện tại** cùng metadata (display_name, color, sort_order) để hiển thị trong UI.
+Lấy danh sách application statuses của **company hiện tại** cùng metadata (display_name, color, sort_order, statusType, isTerminal, isDefault) để hiển thị trong UI.
 
 > **Application Status = cấu hình pipeline ứng tuyển per company**, không phải ENUM cứng toàn hệ thống.  
 > Mỗi company chỉ nhìn/quản lý được pipeline của chính mình; business rule lifecycle & multi-tenant đã được mô tả chi tiết ở API `PATCH /applications/{id}/status`.
+>
+> **StatusType** (enum `com.jobtracker.jobtracker_app.enums.StatusType`): APPLIED(1), SCREENING(2), INTERVIEW(3), OFFER(4), HIRED(5), REJECTED(99). Logic lifecycle dựa vào `statusType.order`.
 
 #### Request Headers
 ```
@@ -2625,11 +2737,15 @@ Authorization: Bearer <access_token>
   "data": [
     {
       "id": "status1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-      "name": "NEW",
-      "displayName": "Mới",
-      "description": "Ứng viên vừa nộp đơn",
-      "color": "#3B82F6",
+      "companyId": null,
+      "name": "applied",
+      "displayName": "Applied",
+      "description": "Candidate just applied",
+      "color": "#6B7280",
+      "statusType": "APPLIED",
       "sortOrder": 1,
+      "isTerminal": false,
+      "isDefault": true,
       "isActive": true,
       "createdAt": "2024-01-01T00:00:00Z",
       "updatedAt": "2024-01-01T00:00:00Z",
@@ -2639,11 +2755,15 @@ Authorization: Bearer <access_token>
     },
     {
       "id": "status2a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-      "name": "SCREENING",
-      "displayName": "Sàng lọc",
-      "description": "Đang sàng lọc hồ sơ",
-      "color": "#8B5CF6",
+      "companyId": null,
+      "name": "screening",
+      "displayName": "Screening",
+      "description": "Screening in progress",
+      "color": "#3B82F6",
+      "statusType": "SCREENING",
       "sortOrder": 2,
+      "isTerminal": false,
+      "isDefault": false,
       "isActive": true,
       "createdAt": "2024-01-01T00:00:00Z",
       "updatedAt": "2024-01-01T00:00:00Z",
@@ -2661,6 +2781,8 @@ Authorization: Bearer <access_token>
 
 Tạo application status **mới cho company hiện tại** (chỉ dành cho ADMIN_COMPANY/RECRUITER).
 
+**statusType** (bắt buộc): Một trong các giá trị `APPLIED`, `SCREENING`, `INTERVIEW`, `OFFER`, `HIRED`, `REJECTED`. Nếu không truyền `isTerminal`, hệ thống tự set theo `statusType` (HIRED/REJECTED → true).
+
 #### Request Headers
 ```
 Authorization: Bearer <access_token>
@@ -2670,11 +2792,14 @@ Content-Type: application/json
 #### Request Body
 ```json
 {
-  "name": "ON_HOLD",
-  "displayName": "Tạm hoãn",
-  "description": "Ứng viên tạm hoãn quy trình",
-  "color": "#F59E0B",
-  "sortOrder": 3,
+  "name": "screening",
+  "displayName": "Sàng lọc",
+  "description": "Đang sàng lọc hồ sơ",
+  "color": "#3B82F6",
+  "statusType": "SCREENING",
+  "sortOrder": 2,
+  "isTerminal": false,
+  "isDefault": false,
   "isActive": true
 }
 ```
@@ -2686,14 +2811,21 @@ Content-Type: application/json
   "message": "Application status created successfully",
   "data": {
     "id": "status3a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-    "name": "ON_HOLD",
-    "displayName": "Tạm hoãn",
-    "description": "Ứng viên tạm hoãn quy trình",
-    "color": "#F59E0B",
-    "sortOrder": 3,
+    "companyId": "company-uuid-xxx",
+    "name": "screening",
+    "displayName": "Sàng lọc",
+    "description": "Đang sàng lọc hồ sơ",
+    "color": "#3B82F6",
+    "statusType": "SCREENING",
+    "sortOrder": 2,
+    "isTerminal": false,
+    "isDefault": false,
     "isActive": true,
     "createdAt": "2024-01-15T10:30:00Z",
-    "updatedAt": "2024-01-15T10:30:00Z"
+    "updatedAt": "2024-01-15T10:30:00Z",
+    "createdBy": null,
+    "updatedBy": null,
+    "deletedAt": null
   },
   "timestamp": "2024-01-15T10:30:00Z"
 }
@@ -2702,14 +2834,18 @@ Content-Type: application/json
 ### 12. Update Application Status
 **PUT** `/admin/application-statuses/{id}`
 
-Cập nhật application status (display_name, color, sort_order, etc.).
+Cập nhật application status (display_name, color, sort_order, statusType, isTerminal, isDefault, etc.). Tất cả fields đều optional (partial update).
 
 #### Request Body
 ```json
 {
-  "displayName": "Tạm hoãn (Cập nhật)",
+  "displayName": "Sàng lọc (Cập nhật)",
   "color": "#F97316",
-  "sortOrder": 4
+  "statusType": "SCREENING",
+  "sortOrder": 4,
+  "isTerminal": false,
+  "isDefault": false,
+  "isActive": true
 }
 ```
 
@@ -2720,13 +2856,23 @@ Cập nhật application status (display_name, color, sort_order, etc.).
   "message": "Application status updated successfully",
   "data": {
     "id": "status3a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-    "name": "ON_HOLD",
-    "displayName": "Tạm hoãn (Cập nhật)",
+    "companyId": "company-uuid-xxx",
+    "name": "screening",
+    "displayName": "Sàng lọc (Cập nhật)",
+    "description": "Đang sàng lọc hồ sơ",
     "color": "#F97316",
+    "statusType": "SCREENING",
     "sortOrder": 4,
-    "updatedAt": "2024-01-15T10:30:00Z"
+    "isTerminal": false,
+    "isDefault": false,
+    "isActive": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:35:00Z",
+    "createdBy": null,
+    "updatedBy": null,
+    "deletedAt": null
   },
-  "timestamp": "2024-01-15T10:30:00Z"
+  "timestamp": "2024-01-15T10:35:00Z"
 }
 ```
 
@@ -3751,6 +3897,36 @@ Soft delete comment (chỉ author hoặc admin mới có thể delete).
 ## 🎤 Interview Management APIs (ATS) 🔄
 
 > **🔄 SEMANTIC CHANGE**: Interviews belong to Applications, không phải Jobs. Một application có thể có nhiều vòng interview.
+
+### 0. Get All Interviews (Company - Tổng hợp)
+**GET** `/interviews`
+
+Lấy danh sách interview **của company hiện tại** (company lấy từ JWT, không phải query param) với filter và phân trang.
+
+> **📌 Thiết kế**
+> - **Company**: Luôn scope theo company của user đăng nhập (JWT). Không có param `companyId` — tránh lộ data company khác.
+> - **Filter** (tất cả optional): `applicationId`, `jobId`, `interviewerId`, `from`, `to`, `status`.
+> - Dùng cho: calendar view, list "interviews của tôi", filter theo job/application, theo khoảng thời gian.
+
+#### Request Headers
+```
+Authorization: Bearer <access_token>
+```
+
+#### Query params (optional)
+| Param | Type | Mô tả |
+|-------|------|-------|
+| `applicationId` | string | Lọc theo application |
+| `jobId` | string | Lọc theo job |
+| `interviewerId` | string | Lọc interview mà user này tham gia (interviewer) |
+| `from` | date-time (ISO) | scheduledDate >= from |
+| `to` | date-time (ISO) | scheduledDate <= to |
+| `status` | enum | SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED |
+| `page` | int | Trang (default 0) |
+| `size` | int | Số phần tử/trang (default 20) |
+
+#### Response (200 OK)
+Cùng format danh sách như **GET /applications/{applicationId}/interviews**, kèm `paginationInfo`.
 
 ### 1. Get Application Interviews
 **GET** `/applications/{applicationId}/interviews`
