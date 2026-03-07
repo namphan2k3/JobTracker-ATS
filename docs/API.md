@@ -1,10 +1,10 @@
-# 🔌 JobTracker ATS API Documentation
+# JobTracker ATS API Documentation
 
-## 📋 Tổng quan API
+## Tổng quan API
 
 JobTracker ATS (Applicant Tracking System) cung cấp RESTful API với thiết kế REST chuẩn, sử dụng JSON cho data exchange và JWT cho authentication. API được thiết kế cho **B2B multi-tenant SaaS** với data isolation theo company.
 
-### 🎯 API Design Principles
+### API Design Principles
 - **RESTful**: Tuân thủ REST conventions
 - **Stateless**: JWT-based authentication
 - **Multi-Tenant**: Data isolation bằng `company_id` trong mọi requests
@@ -13,7 +13,7 @@ JobTracker ATS (Applicant Tracking System) cung cấp RESTful API với thiết 
 - **Secure**: HTTPS, JWT, input validation, RBAC, email verification
 - **Documented**: OpenAPI 3.0 specification
 
-### 🔧 Base Configuration
+### Base Configuration
 ```
 Base URL: https://api.jobtracker.com/api/v1
 Content-Type: application/json
@@ -21,14 +21,14 @@ Authorization: Bearer <oauth2_access_token>
 X-Company-Id: <company_id> (Optional - backend lấy từ JWT; chỉ System Admin cần gửi khi impersonate)
 ```
 
-> 📌 **Public vs Private, Permissions, Roles**: Xem [API_SECURITY.md](./API_SECURITY.md) để biết endpoint nào public, endpoint nào cần auth, permission từng API, và role chứa permission nào.
+> **Public vs Private, Permissions, Roles**: Xem [API_SECURITY.md](./API_SECURITY.md) để biết endpoint nào public, endpoint nào cần auth, permission từng API, và role chứa permission nào.
 
-### 🔑 Multi-Tenant Context
+### Multi-Tenant Context
 - Mọi API request tự động filter theo `company_id` của user
 - User chỉ có thể truy cập data của company mình
 - System Admin có thể truy cập tất cả companies
 
-### 🔐 JWT Access Token Structure (Multi-Tenant Best Practice)
+### JWT Access Token Structure (Multi-Tenant Best Practice)
 
 Access token payload chứa `companyId` và `role` để backend **không cần query DB** mỗi request:
 
@@ -63,7 +63,7 @@ Access token payload chứa `companyId` và `role` để backend **không cần 
 
 **`X-Company-Id` header**: Thường **không cần** gửi — backend lấy `companyId` từ JWT. Chỉ System Admin (khi impersonate company) mới cần gửi để override context.
 
-## 🔐 Authentication APIs
+## Authentication APIs
 
 > **🔑 B2B SaaS Auth Flow**: 
 > - **Email + Password** (bắt buộc)
@@ -77,7 +77,7 @@ Access token payload chứa `companyId` và `role` để backend **không cần 
 
 Đăng ký công ty mới và tạo Company Admin user. Đây là **mô hình 1 - Self Signup** (phổ biến cho SaaS B2B).
 
-> ⚠️ **Lưu ý**: Chỉ dành cho Company Admin tự signup. Các users khác được tạo qua invite flow.
+> **Lưu ý**: Chỉ dành cho Company Admin tự signup. Các users khác được tạo qua invite flow.
 
 #### Request Body
 ```json
@@ -192,7 +192,7 @@ Set-Cookie: refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secu
 
 Xác thực email với token từ email verification link.
 
-> ⚠️ **Bắt buộc**: User phải verify email trước khi có thể login (trừ khi được Admin tạo và verify sẵn).
+>  **Bắt buộc**: User phải verify email trước khi có thể login (trừ khi được Admin tạo và verify sẵn).
 
 > **Token Storage** (bảng `email_verification_tokens`):
 > - Token được tạo khi `POST /auth/register` hoặc `POST /auth/resend-verification`
@@ -395,7 +395,7 @@ Reset password với token từ email.
 }
 ```
 
-## 👤 User Management APIs
+## User Management APIs
 
 ### 1. Get Current User Profile
 **GET** `/users/profile`
@@ -534,9 +534,9 @@ Authorization: Bearer <access_token>
 }
 ```
 
-## 👥 Admin User Management APIs
+## Admin User Management APIs
 
-> **🔑 Hai cách tạo user**:
+> **Hai cách tạo user**:
 > 
 > | Flow | API | Mục đích | isBillable | App access |
 > |------|-----|----------|------------|------------|
@@ -739,7 +739,7 @@ Content-Type: application/json
 
 User nhận invite email, click link, và set password. Sau khi set password, `email_verified = true` và `is_active = true`.
 
-> ⚠️ **Public endpoint**: Không cần authentication (chỉ cần invite token).
+> **Public endpoint**: Không cần authentication (chỉ cần invite token).
 > 
 > **Token Validation**:
 > 1. System tìm record trong `user_invitations` với `token = {token}`
@@ -854,9 +854,9 @@ Gửi lại invite email cho user chưa verify.
 }
 ```
 
-## 💼 Job Management APIs (Job Postings - ATS)
+## Job Management APIs (Job Postings - ATS)
 
-> **🔄 SEMANTIC CHANGE**: Jobs = Job Postings (tin tuyển dụng), không phải "job applied". HR/Recruiter tạo job postings để candidates apply.
+> **SEMANTIC CHANGE**: Jobs = Job Postings (tin tuyển dụng), không phải "job applied". HR/Recruiter tạo job postings để candidates apply.
 >
 > **Response & security**:
 > - **GET /jobs** (list): Trả **summary** — không trả `jobDescription`, `requirements`, `benefits` trong list (tránh payload lớn). Không trả `createdBy`, `updatedBy`, `deletedAt` trong list. Chi tiết đầy đủ dùng **GET /jobs/{id}**.
@@ -1217,21 +1217,21 @@ Authorization: Bearer <access_token>
 > - **Workflow chính**: Candidates tự upload CV qua public API `/public/jobs/{jobId}/apply`
 > - **Workflow phụ**: HR upload CV thủ công khi nhận qua email
 
-## 📝 Applications Management APIs (CORE ATS) ➕
+## Applications Management APIs (CORE ATS) ➕
 
-> **🔑 CORE**: Applications là core entity của ATS. **Modern ATS = Candidate Self-Service Portal**: Candidates tự apply online qua trang công ty mà không cần login. HR/Recruiter quản lý applications qua workflow (APPLIED → SCREENING → INTERVIEW → OFFER → HIRED/REJECTED).
+> **CORE**: Applications là core entity của ATS. **Modern ATS = Candidate Self-Service Portal**: Candidates tự apply online qua trang công ty mà không cần login. HR/Recruiter quản lý applications qua workflow (APPLIED → SCREENING → INTERVIEW → OFFER → HIRED/REJECTED).
 > 
 > **Workflow chính**: Candidate Self-Service (apply online, upload CV/attachments)  
 > **Workflow phụ**: HR manual upload (khi nhận CV qua email)
 
-### 🔓 Public APIs (Candidate Self-Service - Không cần Authentication)
+### Public APIs (Candidate Self-Service - Không cần Authentication)
 
 #### 0. Get Public Jobs (List - Career Page / Job Board)
 **GET** `/public/jobs`
 
 Lấy danh sách job **đang tuyển** (PUBLISHED, chưa hết hạn). Dùng cho career page, job board — **không cần login**.
 
-> **📌 Phân tích thiết kế**
+> **Phân tích thiết kế**
 >
 > **Tại sao public?**
 > - Candidate cần **xem tin tuyển** trước khi apply. Nếu bắt login mới xem → friction cao, mất ứng viên.
@@ -1341,8 +1341,8 @@ Chi tiết 1 job đang tuyển — dùng cho trang job detail trước khi apply
 
 Candidates tự apply online mà không cần login. Đây là **workflow chính** của Modern ATS.
 
-> ⚠️ **Public endpoint**: Không yêu cầu `Authorization` header.  
-> ✅ **Security**: Rate limiting, CAPTCHA (optional), email verification token
+> **Public endpoint**: Không yêu cầu `Authorization` header.  
+> **Security**: Rate limiting, CAPTCHA (optional), email verification token
 
 #### Request Headers
 ```
@@ -1359,9 +1359,9 @@ resume: <file> (PDF - max 5B) [REQUIRED]
 ```
 
 > **Lưu ý về Attachments:**
-> - ✅ **Khi apply**: Chỉ upload CV (resume) - đây là bắt buộc
-> - ❌ **Không upload** certificates/portfolio khi apply lần đầu
-> - 📋 **Sau khi apply**: Nếu HR yêu cầu thêm documents (khi status = screening/interview), candidate sẽ upload qua API `/public/applications/{applicationToken}/attachments`
+> - **Khi apply**: Chỉ upload CV (resume) - đây là bắt buộc
+> - **Không upload** certificates/portfolio khi apply lần đầu
+> - **Sau khi apply**: Nếu HR yêu cầu thêm documents (khi status = screening/interview), candidate sẽ upload qua API `/public/applications/{applicationToken}/attachments`
 
 #### Response (201 Created)
 ```json
@@ -1388,7 +1388,7 @@ resume: <file> (PDF - max 5B) [REQUIRED]
 > - **CV Scoring**: CV được xử lý **synchronous** (2-3 giây) → Match score có ngay trong response
 > - `matchScore = null` nếu parsing failed hoặc chưa có CV
 
-> **🔍 CV Scoring Process (Synchronous - 2-3 giây)**:
+> **CV Scoring Process (Synchronous - 2-3 giây)**:
 > 
 > Sau khi upload CV, system tự động tính match score ngay trong request:
 > 1. **PDF Parsing**: Extract text từ CV (PDF) → ~1-2 giây
@@ -1408,13 +1408,13 @@ resume: <file> (PDF - max 5B) [REQUIRED]
 
 Candidates chỉ có thể upload thêm attachments (certificates, portfolio) **khi HR yêu cầu** trong quá trình review.
 
-> ⚠️ **Public endpoint**: Chỉ cần `applicationToken` (không phải JWT), không cần login
+> **Public endpoint**: Chỉ cần `applicationToken` (không phải JWT), không cần login
 
-> 📋 **Business Logic - Chỉ cho phép upload khi HR đã yêu cầu:**
+> **Business Logic - Chỉ cho phép upload khi HR đã yêu cầu:**
 > 
 > **Điều kiện upload:**
-> - ✅ Application status phải là: `screening` hoặc `interview` (HR đang review)
-> - ✅ **VÀ** `allow_additional_uploads = true` (HR đã set flag yêu cầu documents)
+> - Application status phải là: `screening` hoặc `interview` (HR đang review)
+> - **VÀ** `allow_additional_uploads = true` (HR đã set flag yêu cầu documents)
 > 
 > **Workflow:**
 > 1. Candidate apply → Upload CV (RESUME) - **Bắt buộc khi apply**
@@ -1513,7 +1513,7 @@ description: "AWS Certification"
 
 Candidates có thể track status của application bằng token (không cần login). 
 
-> ⚠️ **Lưu ý**: API này **KHÔNG** trả về match score, missing skills, hoặc các thông tin nội bộ. Chỉ trả về thông tin cần thiết cho candidate.
+> **Lưu ý**: API này **KHÔNG** trả về match score, missing skills, hoặc các thông tin nội bộ. Chỉ trả về thông tin cần thiết cho candidate.
 
 #### Response (200 OK)
 ```json
@@ -1542,7 +1542,7 @@ Candidates có thể track status của application bằng token (không cần l
 > - Chỉ trả về thông tin cần thiết: status, job title, applied date
 > - Candidates không cần biết điểm số hay thiếu skill gì
 
-### 🔐 Protected APIs (HR/Recruiter Management - Yêu cầu Authentication)
+### Protected APIs (HR/Recruiter Management - Yêu cầu Authentication)
 
 ### 1. Get All Applications
 **GET** `/applications`
@@ -1634,7 +1634,7 @@ page=0&size=20&sort=appliedDate,desc&status=NEW&jobId=xxx&assignedTo=xxx&search=
 
 Lấy thông tin chi tiết một application, bao gồm full match score breakdown.
 
-> **🔍 Match Score Details**: Response bao gồm đầy đủ thông tin về CV scoring:
+> **Match Score Details**: Response bao gồm đầy đủ thông tin về CV scoring:
 > - `matchScore`: Điểm khớp (0-100)
 > - `matchScoreDetails`: Breakdown chi tiết skills matched/missing
 
@@ -1684,7 +1684,7 @@ Lấy thông tin chi tiết một application, bao gồm full match score breakd
 }
 ```
 
-> **📊 Match Score Breakdown Explanation**:
+> **Match Score Breakdown Explanation**:
 > - **matchScore**: 82/100 - Điểm khớp tổng thể giữa CV và Job Description
 > - **matchedRequiredCount**: 3/4 - Đã match 3 trong 4 required skills
 > - **matchedOptionalCount**: 2/5 - Đã match 2 trong 5 optional skills
@@ -1703,8 +1703,8 @@ Lấy thông tin chi tiết một application, bao gồm full match score breakd
 
 HR/Recruiter tạo application thủ công khi nhận CV qua email. Đây là **workflow phụ** (backup workflow), không phải workflow chính.
 
-> ⚠️ **Protected endpoint**: Yêu cầu `Authorization: Bearer <access_token>`  
-> 📝 **Use case**: HR nhận CV qua email → Upload vào system thủ công → Tạo application
+> **Protected endpoint**: Yêu cầu `Authorization: Bearer <access_token>`  
+> **Use case**: HR nhận CV qua email → Upload vào system thủ công → Tạo application
 
 #### Request Body
 ```json
@@ -1787,7 +1787,7 @@ Cập nhật status của application (workflow: APPLIED → SCREENING → INTER
 > - Khi tạo application (auto/public hoặc HR tạo thủ công), hệ thống chọn `status_id` default theo pipeline của company và ghi một bản ghi vào `application_status_history` (fromStatus = null, toStatus = default).  
 > - Khi HR cập nhật status qua `PATCH /applications/{id}/status`, hệ thống kiểm tra status hợp lệ cho company, cập nhật `applications.status_id` và thêm một bản ghi mới vào `application_status_history`.  
 
-#### ✔ Business rule (lifecycle)
+#### Business rule (lifecycle)
 
 - **Lifecycle chuẩn theo `StatusType`**:  
   - APPLIED → SCREENING → INTERVIEW → OFFER → HIRED  
@@ -1797,13 +1797,13 @@ Cập nhật status của application (workflow: APPLIED → SCREENING → INTER
 - **Không đi ngược lifecycle**:  
   - Không cho phép chuyển từ stage có `StatusType` order cao về stage có order thấp (ví dụ OFFER → INTERVIEW, SCREENING → APPLIED).  
 
-#### ✔ Không phụ thuộc UI (sort_order chỉ để hiển thị)
+#### Không phụ thuộc UI (sort_order chỉ để hiển thị)
 
 - `sortOrder` **chỉ dùng để sắp xếp hiển thị** pipeline trong UI từng company.  
 - Logic lifecycle **không dựa vào `sortOrder`** mà dựa vào `statusType.order` trong enum `StatusType`.  
 - Company có thể **reorder pipeline** (đổi `sortOrder`, đổi `displayName`, đổi `color`) mà **không ảnh hưởng** tới business rule lifecycle nêu trên.
 
-#### ✔ Multi-tenant safe
+#### Multi-tenant safe
 
 - Khi update status của một application, backend luôn kiểm tra:  
   - Status mới phải thuộc **cùng company** với application, hoặc là **system default** (`company_id IS NULL`) được clone cho company đó.  
@@ -1924,7 +1924,7 @@ Lấy lịch sử thay đổi status của application.
 }
 ```
 
-## 🏢 Company Management APIs
+## Company Management APIs
 
 > **Phân quyền**:
 > - **GET /companies** (list tất cả): Chỉ **SYSTEM_ADMIN**. Company Admin chỉ xem được company của mình qua **GET /companies/{id}** (với id từ JWT/context).
@@ -1932,7 +1932,7 @@ Lấy lịch sử thay đổi status của application.
 > - **GET/PUT/DELETE /companies/{id}**: SYSTEM_ADMIN (bất kỳ company) hoặc ADMIN_COMPANY (chỉ company của mình).
 > - **PATCH /companies/{id}/verify**: Chỉ **SYSTEM_ADMIN** — set trạng thái verified của company.
 >
-> **📋 Tiêu chí Verified (cho Admin)**  
+> **Tiêu chí Verified (cho Admin)**  
 > `isVerified` là quyết định **thủ công** của SYSTEM_ADMIN, không có công thức tự động. Admin nên set verified sau khi đánh giá theo checklist (tuỳ quy định nội bộ), ví dụ:
 > - Đã xác minh thông tin công ty (giấy phép kinh doanh / trụ sở / website hợp lệ).
 > - Đã ký hợp đồng / thanh toán (nếu áp dụng).
@@ -2105,14 +2105,14 @@ Authorization: Bearer <access_token>
 }
 ```
 
-## 💳 Subscription Management APIs (Lookup + History) ➕
+## Subscription Management APIs (Lookup + History) ➕
 
 > **Thiết kế sau refactor**: Subscription KHÔNG còn là ENUM hay field trong `companies`.  
 > Thay vào đó:
 > - `subscription_plans`: catalog gói hệ thống (FREE, BASIC, PRO, ENTERPRISE, ...), có metadata (price, duration_days, max_jobs, max_users, max_applications, is_active).  
 > - `company_subscriptions`: history theo thời gian cho từng company (plan_id, start_date, end_date, status = PENDING/ACTIVE/EXPIRED/CANCELLED).
 
-### 🔵 SubscriptionPlan APIs (System Catalog)
+### SubscriptionPlan APIs (System Catalog)
 
 #### 1. Get Subscription Plans
 
@@ -2125,7 +2125,7 @@ Lấy danh sách tất cả gói subscription mà hệ thống hỗ trợ (dùng
 Authorization: Bearer <access_token>
 ```
 
-> ⚠️ Thường chỉ **SYSTEM_ADMIN** mới được phép quản lý/nhìn toàn bộ plans.  
+> Thường chỉ **SYSTEM_ADMIN** mới được phép quản lý/nhìn toàn bộ plans.  
 > **Lookup/config data → trả về List, không paginate.**
 
 ##### Response (200 OK)
@@ -2294,7 +2294,7 @@ Content-Type: application/json
 }
 ```
 
-### 🟠 CompanySubscription APIs (Per-company History)
+### CompanySubscription APIs (Per-company History)
 
 #### 1. Create Company Subscription (Admin)
 
@@ -2501,7 +2501,7 @@ page=0&size=20&status=ACTIVE&sort=startDate,desc
 }
 ```
 
-### 🧾 Payment APIs (Billing Transactions – VNPAY ready)
+### Payment APIs (Billing Transactions – VNPAY ready)
 
 > Các API này dùng để khởi tạo và tra cứu giao dịch thanh toán cho subscription.  
 > Không bind cứng vào VNPAY, nhưng đã đủ field để map `vnp_TxnRef`, `vnp_ResponseCode`, payload callback.
@@ -2663,9 +2663,9 @@ Lấy danh sách payment theo từng company.
 
 Lấy lịch sử payments cho một bản ghi subscription cụ thể.
 
-## 📋 Lookup Tables APIs
+## Lookup Tables APIs
 
-> **🔄 CHUYỂN SANG STRING + ENUM ỨNG DỤNG**: Các lookup tables sau đã chuyển sang **string (VARCHAR) trong DB** và **enum ở backend/API**, không cần APIs riêng:
+> **CHUYỂN SANG STRING + ENUM ỨNG DỤNG**: Các lookup tables sau đã chuyển sang **string (VARCHAR) trong DB** và **enum ở backend/API**, không cần APIs riêng:
 > - **Job Statuses** → Field `jobs.jobStatus` (VARCHAR, các giá trị cố định: DRAFT, PUBLISHED, PAUSED, CLOSED, FILLED)
 > - **Job Types** → Field `jobs.jobType` (VARCHAR, các giá trị cố định: FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, FREELANCE)
 > - **Interview Types** → Field `interviews.interviewType` (VARCHAR, các giá trị cố định: PHONE, VIDEO, IN_PERSON, TECHNICAL, HR, FINAL)
@@ -2675,46 +2675,10 @@ Lấy lịch sử payments cho một bản ghi subscription cụ thể.
 > - **Notification Priorities** → Field `notifications.priority` (VARCHAR, các giá trị cố định: HIGH, MEDIUM, LOW)
 > - **Attachment Types** → Field `attachments.attachmentType` (VARCHAR, các giá trị cố định: RESUME, COVER_LETTER, CERTIFICATE, PORTFOLIO, OTHER)
 
-> **✅ LOOKUP TABLE**: Application Statuses giữ lại lookup table vì cần metadata (display_name, color, sort_order) và flexibility:
+> **LOOKUP TABLE**: Application Statuses là lookup table vì cần metadata (display_name, color, sort_order) và flexibility:
 > - **Application Statuses** → Lookup table `application_statuses` (name: applied, screening, interview, offer, hired, rejected; status_type: APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED)
 
-### ~~1. Get Job Statuses~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Job statuses giờ là ENUM trong `jobs.jobStatus`. Sử dụng trực tiếp ENUM values trong request/response.
-
-### ~~2. Get Job Types~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Job types giờ là ENUM trong `jobs.jobType`. Sử dụng trực tiếp ENUM values trong request/response.
-
-### ~~3. Get Priorities~~ ❌ **REMOVED**
-
-> **Lý do**: ATS không cần priority cho job postings. Đã bỏ hoàn toàn.
-
-### ~~4. Get Experience Levels~~ ❌ **REMOVED**
-
-> **Lý do**: Quá phức tạp cho ATS. HR có thể ghi tự do trong job description. Đã bỏ hoàn toàn.
-
-### ~~5. Get Interview Types~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Interview types giờ là ENUM trong `interviews.interviewType` (PHONE, VIDEO, IN_PERSON, TECHNICAL, HR, FINAL). Sử dụng trực tiếp ENUM values trong request/response.
-
-### ~~6. Get Interview Statuses~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Interview statuses giờ là ENUM trong `interviews.status` (SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED). Sử dụng trực tiếp ENUM values trong request/response.
-
-### ~~7. Get Interview Results~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Interview results giờ là ENUM trong `interviews.result` (PASSED, FAILED, PENDING). Sử dụng trực tiếp ENUM values trong request/response.
-
-### ~~8. Get Notification Types~~ ❌ **CHUYỂN SANG STRING + ENUM ỨNG DỤNG**
-
-> **Lý do**: Notification types giờ được lưu dạng string (VARCHAR) trong `notifications.type` nhưng được quản lý như enum ở backend (APPLICATION_RECEIVED, INTERVIEW_SCHEDULED, INTERVIEW_REMINDER, STATUS_CHANGE, DEADLINE_REMINDER, COMMENT_ADDED, ASSIGNMENT_CHANGED). Sử dụng trực tiếp enum values trong request/response.
-
-### ~~9. Get Notification Priorities~~ ❌ **CHUYỂN SANG STRING + ENUM ỨNG DỤNG**
-
-> **Lý do**: Notification priorities giờ được lưu dạng string (VARCHAR) trong `notifications.priority` nhưng được quản lý như enum ở backend (HIGH, MEDIUM, LOW). Sử dụng trực tiếp enum values trong request/response.
-
-### 10. Get Application Statuses ✅
+### 1. Get Application Statuses
 **GET** `/admin/application-statuses`
 
 Lấy danh sách application statuses của **company hiện tại** cùng metadata (display_name, color, sort_order, statusType, isTerminal, isDefault) để hiển thị trong UI.
@@ -2776,7 +2740,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 11. Create Application Status
+### 2. Create Application Status
 **POST** `/admin/application-statuses`
 
 Tạo application status **mới cho company hiện tại** (chỉ dành cho ADMIN_COMPANY/RECRUITER).
@@ -2831,7 +2795,7 @@ Content-Type: application/json
 }
 ```
 
-### 12. Update Application Status
+### 3. Update Application Status
 **PUT** `/admin/application-statuses/{id}`
 
 Cập nhật application status (display_name, color, sort_order, statusType, isTerminal, isDefault, etc.). Tất cả fields đều optional (partial update).
@@ -2876,7 +2840,7 @@ Cập nhật application status (display_name, color, sort_order, statusType, is
 }
 ```
 
-### 13. Delete Application Status
+### 4. Delete Application Status
 **DELETE** `/admin/application-statuses/{id}`
 
 Soft delete application status (chỉ khi không có applications nào đang dùng).
@@ -2891,11 +2855,11 @@ Soft delete application status (chỉ khi không có applications nào đang dù
 }
 ```
 
-## 📧 Email Management APIs
+## Email Management APIs
 
 > **Kiến trúc**: Email Engine (Template + Outbox + Scheduler) phục vụ backend; Admin API expose cho HR quản lý template + xem lịch sử gửi.
 
-### 📋 Email Types Reference
+### Email Types Reference
 
 Bảng ánh xạ **Email Type** ↔ API / flow gửi email:
 
@@ -2945,7 +2909,7 @@ Template workflow chỉ định nghĩa `content`; hệ thống wrap bằng layou
 
 ---
 
-### 📝 Email Template APIs (Full CRUD)
+### Email Template APIs (Full CRUD)
 
 HR quản lý email templates (global hoặc override theo company). Template dùng cho các flow: apply, interview, offer, rejection, v.v.
 
@@ -3165,7 +3129,7 @@ Gửi email test tới địa chỉ chỉ định (mặc định email HR hiện
 
 ---
 
-### 📬 Email History APIs (Read-only + Resend)
+### Email History APIs (Read-only + Resend)
 
 > **Mục đích**: Support, debug, compliance. Email outbox không chỉ là queue nội bộ mà còn là **communication history** – audit log, delivery tracking, debug tool.
 
@@ -3275,9 +3239,9 @@ Resend thủ công email FAILED (reset `status = PENDING`, `retry_count = 0`). S
 
 ---
 
-## 🔐 RBAC & Permission APIs
+## RBAC & Permission APIs
 
-> ⚠️ Các endpoint này yêu cầu quyền `SYSTEM_ADMIN` hoặc `ADMIN_COMPANY` (tùy scope).
+> Các endpoint này yêu cầu quyền `SYSTEM_ADMIN` hoặc `ADMIN_COMPANY` (tùy scope).
 
 ### 1. Get Roles
 **GET** `/admin/roles`
@@ -3607,7 +3571,7 @@ Cập nhật danh sách permission cho role cụ thể.
 }
 ```
 
-## 🎯 Skills Management APIs
+## Skills Management APIs
 
 ### 1. Get All Skills
 **GET** `/skills`
@@ -3761,19 +3725,7 @@ page=0&size=50&sort=name,asc&category=PROGRAMMING&search=Java
 }
 ```
 
-### ~~6. Get User Skills~~ ❌ **REMOVED**
-
-> **Lý do**: ATS không track skills của HR/Recruiter. Chỉ cần track skills yêu cầu của job (job_skills). Candidates skills nằm trong CV text.
-
-### ~~7. Add User Skill~~ ❌ **REMOVED**
-### ~~8. Update User Skill~~ ❌ **REMOVED**
-### ~~9. Delete User Skill~~ ❌ **REMOVED**
-
-## ~~📄 Resume Management APIs~~ ❌ **REMOVED**
-
-> **Lý do**: ATS không cần candidates upload CV. CVs được lưu trong `applications.resume_file_path` hoặc `attachments` table khi HR upload.
-
-## 💬 Comments Management APIs (ATS) ➕
+## Comments Management APIs (ATS)
 
 > **Mục đích**: HR/Recruiter trao đổi về candidates trên applications. Comments có thể là internal (không gửi candidate) hoặc external.
 
@@ -3894,16 +3846,16 @@ Soft delete comment (chỉ author hoặc admin mới có thể delete).
 }
 ```
 
-## 🎤 Interview Management APIs (ATS) 🔄
+## Interview Management APIs (ATS)
 
-> **🔄 SEMANTIC CHANGE**: Interviews belong to Applications, không phải Jobs. Một application có thể có nhiều vòng interview.
+> **SEMANTIC CHANGE**: Interviews belong to Applications, không phải Jobs. Một application có thể có nhiều vòng interview.
 
 ### 0. Get All Interviews (Company - Tổng hợp)
 **GET** `/interviews`
 
 Lấy danh sách interview **của company hiện tại** (company lấy từ JWT, không phải query param) với filter và phân trang.
 
-> **📌 Thiết kế**
+> **Thiết kế**
 > - **Company**: Luôn scope theo company của user đăng nhập (JWT). Không có param `companyId` — tránh lộ data company khác.
 > - **Filter** (tất cả optional): `applicationId`, `jobId`, `interviewerId`, `from`, `to`, `status`.
 > - Dùng cho: calendar view, list "interviews của tôi", filter theo job/application, theo khoảng thời gian.
@@ -3993,9 +3945,9 @@ Authorization: Bearer <access_token>
 
 Tạo interview mới cho application với nhiều interviewers.
 
-> **👥 Multiple Interviewers**: Một interview có thể có nhiều interviewers (array `interviewerIds`).
+> **Multiple Interviewers**: Một interview có thể có nhiều interviewers (array `interviewerIds`).
 > 
-> **⏰ Schedule Validation**: System tự động validate trùng lịch cho từng interviewer:
+> **Schedule Validation**: System tự động validate trùng lịch cho từng interviewer:
 > - Nếu interviewer đã có interview khác trong khoảng thời gian `scheduledDate` ± `durationMinutes` → Reject với error
 > - Chỉ validate cho interviews có status = `SCHEDULED` hoặc `RESCHEDULED`
 > - Validate overlap: Nếu interview A từ 10:00-11:00 và interview B từ 10:30-11:30 → Trùng lịch (overlap)
@@ -4237,9 +4189,9 @@ Trả về đầy đủ thông tin của một interview (bao gồm audit, feedb
 }
 ```
 
-## 📊 Dashboard API
+## Dashboard API
 
-> **🎯 4 widget tối ưu cho ATS**: Active Jobs, Applications Today, Applications by Status, Upcoming Interviews.
+> **4 widget tối ưu cho ATS**: Active Jobs, Applications Today, Applications by Status, Upcoming Interviews.
 
 **GET** `/dashboard/summary`
 
@@ -4320,9 +4272,9 @@ Authorization: Bearer <access_token>
 | **3. Applications by Status** | Pipeline overview – số application theo từng status. Dùng cho chart donut/bar. |
 | **4. Upcoming Interviews** | 3–5 cuộc phỏng vấn sắp tới (sắp theo `scheduledDate`). |
 
-## 🔔 Notification APIs (ATS) 🔄
+## Notification APIs (ATS)
 
-> **🔄 SEMANTIC CHANGE**: Notifications có thể link đến applications (status changes, interview reminders).
+> **SEMANTIC CHANGE**: Notifications có thể link đến applications (status changes, interview reminders).
 
 ### 1. Get User Notifications
 **GET** `/notifications`
@@ -4517,7 +4469,7 @@ Trả về đầy đủ metadata (job, user, template data).
 }
 ```
 
-## 🔑 Session Management APIs
+## Session Management APIs
 
 ### 1. Get Active Sessions
 **GET** `/sessions`
@@ -4573,12 +4525,12 @@ Authorization: Bearer <access_token>
 }
 ```
 
-## 📜 Audit Log APIs
+## Audit Log APIs
 
 ### 1. Get Audit Logs
 **GET** `/audit-logs`
 
-> ⚠️ Chỉ dành cho SYSTEM_ADMIN.
+> Chỉ dành cho SYSTEM_ADMIN.
 
 Lấy log hành động của người dùng/system để phục vụ kiểm tra.
 
@@ -4638,17 +4590,17 @@ page=0&size=20&entityType=JOB&action=UPDATE&startDate=2024-01-01&endDate=2024-01
 }
 ```
 
-## 📁 File Management APIs (ATS) 🔄
+## File Management APIs (ATS)
 
-> **🔄 SEMANTIC CHANGE**: Attachments belong to Applications (CVs, certificates), không phải Jobs.
+> **SEMANTIC CHANGE**: Attachments belong to Applications (CVs, certificates), không phải Jobs.
 
 ### 1. Upload Application Attachment (HR Workflow)
 **POST** `/applications/{applicationId}/attachments`
 
 HR/Recruiter upload file đính kèm cho application (CV, certificate, portfolio). Đây là **workflow phụ** cho HR manual upload.
 
-> ⚠️ **Protected endpoint**: Yêu cầu `Authorization: Bearer <access_token>`  
-> 📝 **Use case**: HR nhận CV qua email → Upload vào system → Link với application
+> **Protected endpoint**: Yêu cầu `Authorization: Bearer <access_token>`  
+> **Use case**: HR nhận CV qua email → Upload vào system → Link với application
 
 #### Request Headers
 ```
@@ -4752,7 +4704,7 @@ Xóa attachment.
 }
 ```
 
-## 🚨 Error Responses
+## Error Responses
 
 ### Standard Error Format
 ```json
@@ -4831,7 +4783,7 @@ Xóa attachment.
 }
 ```
 
-## 🔧 API Configuration
+## API Configuration
 
 ### Rate Limiting
 ```
@@ -4854,7 +4806,7 @@ Allowed Headers: Authorization, Content-Type, X-Requested-With
 Max Age: 3600 seconds
 ```
 
-## 📚 OpenAPI Documentation
+## OpenAPI Documentation
 
 API documentation được tự động generate bằng SpringDoc OpenAPI 3 và có thể truy cập tại:
 
@@ -4869,7 +4821,7 @@ Version Header: X-API-Version
 Deprecation Policy: 6 months notice
 ```
 
-## 🔐 Security Headers
+## Security Headers
 
 ### Required Headers
 ```

@@ -1,4 +1,4 @@
-## 🧭 Business flows & status lifecycle (JobTracker ATS)
+## Business flows & status lifecycle (JobTracker ATS)
 
 Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc thay đổi trạng thái** trong JobTracker ATS, dựa trên `DATABASE.md`, `API.md` và code backend (`ApplicationServiceImpl`, `InterviewServiceImpl`, `NotificationServiceImpl`, ...).
 
@@ -777,7 +777,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 ---
 
-**📧 0️⃣ User & Auth Emails**
+**0️⃣ User & Auth Emails**
 
 | Template code | allowed_system_vars | allowed_manual_vars |
 |---------------|---------------------|----------------------|
@@ -790,7 +790,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 ---
 
-**📨 1️⃣ Application Emails**
+**1️⃣ Application Emails**
 
 | Template code | allowed_system_vars | allowed_manual_vars |
 |---------------|---------------------|----------------------|
@@ -801,7 +801,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 ---
 
-**🎤 2️⃣ Interview Emails**
+**2️⃣ Interview Emails**
 
 | Template code | allowed_system_vars | allowed_manual_vars |
 |---------------|---------------------|----------------------|
@@ -811,7 +811,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 
 ---
 
-**💼 3️⃣ Offer Emails**
+**3️⃣ Offer Emails**
 
 | Template code | allowed_system_vars | allowed_manual_vars |
 |---------------|---------------------|----------------------|
@@ -921,7 +921,7 @@ Các template workflow cho candidate (APPLICATION_CONFIRMATION, INTERVIEW_SCHEDU
 
 ### 6.6. Kiến trúc Email: Engine Layer vs Admin Layer
 
-#### 🏗 Email Engine Layer (Backend)
+#### Email Engine Layer (Backend)
 
 ```
 EmailTemplateService
@@ -934,7 +934,7 @@ EmailSchedulerWorker
 - **Scheduler** đọc `PENDING` / `FAILED` (retry) → gửi qua Brevo → cập nhật status.
 - **Email outbox** không chỉ là queue nội bộ mà còn là **communication history** – audit log, delivery tracking, debug tool.
 
-#### 🖥 Admin Layer (API cho HR)
+#### Admin Layer (API cho HR)
 
 | API | Mục đích |
 |-----|----------|

@@ -1237,33 +1237,71 @@ CREATE INDEX idx_audit_company_entity ON audit_logs(company_id, entity_type, ent
 ```
 
 ## Database Relationships
+
+### Sơ đồ quan hệ (tóm tắt)
+
+**Chú thích:** `(0..1)` = không hoặc một (FK nullable); `(1)` = bắt buộc một; `(N)` = nhiều.
+
 ```
 Companies (1) ──── (N) Users (Multi-tenant)
-Companies (1) ──── (N) Jobs (Job Postings)
+Companies (1) ──── (N) Jobs
 Companies (1) ──── (N) Applications
 Companies (1) ──── (N) Interviews
 Companies (1) ──── (N) Notifications
 Companies (1) ──── (N) Attachments
 Companies (1) ──── (N) Audit_Logs
+Companies (1) ──── (N) Company_Subscriptions ──── (1) Subscription_Plans
+Companies (1) ──── (N) Payments (qua company_subscription_id)
+Companies (0..1) ──── (N) Application_Statuses (company_id NULL = system default)
+Companies (0..1) ──── (N) Email_Templates (company_id NULL = global)
 
-Users (1) ──── (N) Jobs (HR/Recruiter creates)
-Users (1) ──── (N) Applications (assigned_to)
-Users (1) ──── (N) Interviews (interviewer)
+Roles (1) ──── (N) Users
+Roles (N) ←──→ (N) Permissions (qua role_permissions)
+
+Users (1) ──── (N) Jobs (user_id = HR/Recruiter tạo job)
+Users (0..1) ──── (N) Applications (assigned_to)
+Users (N) ←──→ (N) Interviews (qua interview_interviewers, nhiều interviewer/1 interview)
 Users (1) ──── (N) Comments
 Users (1) ──── (N) Notifications
 Users (1) ──── (N) User_Sessions
 Users (1) ──── (N) Audit_Logs
+Users (0..1) ──── (N) Attachments (user_id = người upload; 0..1 = nullable, NULL nếu candidate upload qua public form)
+Users (1) ──── (N) User_Invitations
+Users (1) ──── (N) Email_Verification_Tokens / Password_Reset_Tokens
 
 Jobs (1) ──── (N) Applications (Candidates apply)
 Jobs (1) ──── (N) Job_Skills
+Jobs (1) ──── (N) Interviews (job_id = reference)
+Jobs (0..1) ──── (N) Notifications (job_id nullable)
 
-Applications (1) ──── (N) Interviews (Interview rounds)
+Application_Statuses (1) ──── (N) Applications (status_id)
+Applications (1) ──── (N) Interviews (các vòng phỏng vấn)
 Applications (1) ──── (N) Comments
 Applications (1) ──── (N) Attachments (CVs, certificates)
 Applications (1) ──── (N) Application_Status_History
+Applications (0..1) ──── (N) Notifications (application_id nullable)
 
-Skills (1) ──── (N) Job_Skills
+Skills (1) ──── (N) Job_Skills (qua bảng junction job_skills)
+
+Interviews (N) ←──→ (N) Users (qua interview_interviewers; is_primary)
+
+Email_Outbox: aggregate_type/aggregate_id + company_id (không FK trực tiếp entity)
+Invalidated_Token: lưu JWT jti (logout blacklist)
 ```
+
+### Chi tiết
+
+**Multi-tenant và công ty**  
+Mọi dữ liệu nghiệp vụ đều gắn với **company**: users, jobs, applications, interviews, notifications, attachments, audit_logs đều có `company_id`. Một company có nhiều users (nhân sự HR/Recruiter), nhiều job posting, nhiều đơn ứng tuyển, nhiều lịch phỏng vấn. Subscription (gói dùng) và thanh toán (payments) cũng theo company qua bảng `company_subscriptions` và `subscription_plans`.
+
+**Luồng ATS chính (Job → Application → Interview)**  
+**Job** do một user (HR/Recruiter) tạo và thuộc một company. Ứng viên nộp đơn vào job tạo ra **Application**; mỗi application có một **Application Status** (trạng thái pipeline: Applied, Screening, Interview, Offer, Hired, Rejected). Application có thể được gán cho user qua `assigned_to`. Mỗi application có nhiều **Interview** (nhiều vòng); mỗi interview thuộc một application và tham chiếu thêm `job_id`. Một interview có **nhiều interviewer** (users), quan hệ N:N qua bảng **interview_interviewers** (có cột `is_primary` cho interviewer chính). Ngoài ra, application còn có **comments**, **attachments** (CV, chứng chỉ), và lịch sử đổi trạng thái trong **application_status_history**.
+
+**Phân quyền (RBAC)**  
+**User** thuộc một **company** và một **role** (SYSTEM_ADMIN, ADMIN_COMPANY, RECRUITER). **Role** được gán nhiều **permission** qua bảng **role_permissions** (N:N). Quyền chi phối việc tạo/sửa/xóa job, application, interview, comment, user, v.v.
+
+**Bảng phụ trợ**  
+**Skills** và **job_skills** nối Job với Skill (N:N, có is_required, proficiency_level). **Notifications** gửi tới user, có thể gắn job_id/application_id (nullable). **Attachments** gắn application, company và có thể gắn user (người upload). **Email_templates** theo company (hoặc global khi `company_id` NULL); **email_outbox** lưu email chờ gửi theo aggregate (application, interview, user, v.v.). **User_invitations**, **email_verification_tokens**, **password_reset_tokens** phục vụ invite và xác thực; **invalidated_token** lưu JWT đã logout.
 
 ## Sample Data
 
@@ -1814,7 +1852,7 @@ users.company_id → companies.id
 - **Cardinality**: 1:N (1 company → N users)
 - **Foreign Key**: `users.company_id` → `companies.id`
 - **Constraint**: `ON DELETE RESTRICT` (không cho xóa company nếu còn users)
-- **🔑 CRITICAL**: Đây là multi-tenant key cho toàn bộ system
+- **Lưu ý**: Đây là multi-tenant key cho toàn bộ system
 
 #### **2.2. Users ↔ Jobs (One-to-Many) - ATS**
 ```sql
@@ -1836,21 +1874,9 @@ jobs.company_id → companies.id
 - **Foreign Key**: `jobs.company_id` → `companies.id`
 - **Constraint**: `ON DELETE RESTRICT` (không cho xóa company nếu còn jobs)
 
-#### ~~**2.4. Job Statuses ↔ Jobs**~~ ❌ **CHUYỂN SANG ENUM**
+### **3. APPLICATION MANAGEMENT RELATIONSHIPS (CORE ATS)**
 
-> **Lý do**: Job statuses giờ là ENUM trong `jobs.job_status` (DRAFT, PUBLISHED, PAUSED, CLOSED, FILLED). Không cần foreign key.
-
-#### ~~**2.5. Job Types ↔ Jobs**~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Job types giờ là ENUM trong `jobs.job_type` (FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, FREELANCE). Không cần foreign key.
-
-#### ~~**2.5. Priorities ↔ Jobs**~~ ❌ **REMOVED**
-
-#### ~~**2.6. Experience Levels ↔ Jobs**~~ ❌ **REMOVED**
-
-###  **3. APPLICATION MANAGEMENT RELATIONSHIPS (CORE ATS)**
-
-#### **3.1. Jobs ↔ Applications (One-to-Many)** 🔑
+#### **3.1. Jobs ↔ Applications (One-to-Many)**
 ```sql
 -- Quan hệ: 1 job posting có thể có nhiều applications
 applications.job_id → jobs.id
@@ -1860,7 +1886,7 @@ applications.job_id → jobs.id
 - **Foreign Key**: `applications.job_id` → `jobs.id`
 - **Constraint**: `ON DELETE CASCADE` (xóa job thì xóa applications)
 
-#### **3.2. Companies ↔ Applications (One-to-Many) - Multi-Tenant** 🔑
+#### **3.2. Companies ↔ Applications (One-to-Many) - Multi-Tenant**
 ```sql
 -- Quan hệ: 1 company có thể có nhiều applications
 applications.company_id → companies.id
@@ -1911,14 +1937,35 @@ attachments.application_id → applications.id
 ```sql
 -- Quan hệ: 1 application có nhiều status changes
 application_status_history.application_id → applications.id
+application_status_history.from_status_id → application_statuses.id (nullable)
+application_status_history.to_status_id → application_statuses.id
+application_status_history.changed_by → users.id (nullable, system nếu NULL)
 ```
 - **Mục đích**: Audit trail cho status workflow
 - **Cardinality**: 1:N (1 application → N history records)
-- **Foreign Key**: `application_status_history.application_id` → `applications.id`
+- **Foreign Key**: `application_status_history.application_id` → `applications.id` (CASCADE); `from_status_id`/`to_status_id` → `application_statuses.id`; `changed_by` → `users.id` (SET NULL)
 
-###  **4. SKILLS MANAGEMENT RELATIONSHIPS**
+#### **3.8. Application Statuses ↔ Applications (One-to-Many)**
+```sql
+-- Quan hệ: 1 application có 1 status hiện tại; 1 status có thể áp cho nhiều applications
+applications.status_id → application_statuses.id
+```
+- **Mục đích**: Trạng thái pipeline (Applied, Screening, Interview, Offer, Hired, Rejected)
+- **Cardinality**: 1:N (1 application_status → N applications)
+- **Foreign Key**: `applications.status_id` → `application_statuses.id`
+- **Constraint**: `ON DELETE RESTRICT`
+- **Lưu ý**: `application_statuses.company_id` NULL = system default; có value = custom theo company
 
-#### ~~**3.1. Users ↔ Skills**~~ ❌ **REMOVED**
+#### **3.9. Companies ↔ Application Statuses (One-to-Many)**
+```sql
+application_statuses.company_id → companies.id (nullable)
+```
+- **Mục đích**: Trạng thái pipeline global (company_id NULL) hoặc custom theo company
+- **Cardinality**: 1 company → N application_statuses (company_id = company); N records có company_id NULL = system default
+- **Foreign Key**: `application_statuses.company_id` → `companies.id`
+- **Constraint**: `ON DELETE CASCADE`
+
+### **4. SKILLS MANAGEMENT RELATIONSHIPS**
 
 #### **4.1. Jobs ↔ Skills (Many-to-Many)**
 ```sql
@@ -1977,7 +2024,7 @@ interviews.company_id → companies.id
 - **Mục đích**: Multi-tenant isolation
 - **Cardinality**: 1:N (1 company → N interviews)
 
-#### **5.4. Interviews ↔ Users (Many-to-Many) - Interviewers** ➕
+#### **5.4. Interviews ↔ Users (Many-to-Many) - Interviewers**
 ```sql
 -- Quan hệ: 1 interview có thể có nhiều interviewers, 1 interviewer có thể có nhiều interviews
 interview_interviewers.interview_id → interviews.id
@@ -1988,23 +2035,7 @@ interview_interviewers.interviewer_id → users.id (role = RECRUITER)
 - **Junction Table**: `interview_interviewers`
 - **Additional Fields**: `is_primary` (interviewer chính)
 - **Schedule Validation**: Validate trùng lịch dựa trên `interviewer_id`, `scheduled_date`, `duration_minutes`
-- **Foreign Key**: `interviews.company_id` → `companies.id`
-
-#### ~~**5.4. Interview Types ↔ Interviews**~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Interview types giờ là ENUM trong `interviews.interview_type` (PHONE, VIDEO, IN_PERSON, TECHNICAL, HR, FINAL). Không cần foreign key.
-
-#### ~~**5.5. Interview Statuses ↔ Interviews**~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Interview statuses giờ là ENUM trong `interviews.status` (SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED). Không cần foreign key.
-
-#### ~~**5.6. Interview Results ↔ Interviews**~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Interview results giờ là ENUM trong `interviews.result` (PASSED, FAILED, PENDING). Không cần foreign key.
-
-### ~~ **5. RESUME MANAGEMENT RELATIONSHIPS**~~ ❌ **REMOVED**
-
-> **Lý do**: ATS không cần bảng resumes riêng. CVs lưu trong `applications.resume_file_path` hoặc `attachments`.
+- **Foreign Key**: `interview_interviewers.interview_id` → `interviews.id` (CASCADE); `interviewer_id` → `users.id` (RESTRICT); `interview_interviewers.company_id` → `companies.id` (RESTRICT)
 
 ### **6. NOTIFICATION SYSTEM RELATIONSHIPS (ATS)**
 
@@ -2035,13 +2066,15 @@ notifications.application_id → applications.id
 - **Cardinality**: 1:N (1 application → N notifications)
 - **Foreign Key**: `notifications.application_id` → `applications.id`
 
-#### ~~**6.4. Notification Types ↔ Notifications**~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Notification types giờ là ENUM trong `notifications.type` (APPLICATION_RECEIVED, INTERVIEW_SCHEDULED, INTERVIEW_REMINDER, STATUS_CHANGE, DEADLINE_REMINDER, COMMENT_ADDED, ASSIGNMENT_CHANGED). Không cần foreign key.
-
-#### ~~**6.5. Notification Priorities ↔ Notifications**~~ ❌ **CHUYỂN SANG ENUM**
-
-> **Lý do**: Notification priorities giờ là ENUM trong `notifications.priority` (HIGH, MEDIUM, LOW). Không cần foreign key.
+#### **6.4. Jobs ↔ Notifications (One-to-Many, optional)**
+```sql
+-- Quan hệ: 1 job có thể có nhiều notifications (job_id nullable)
+notifications.job_id → jobs.id
+```
+- **Mục đích**: Notifications liên quan job (vd. deadline reminder)
+- **Cardinality**: 1:N (1 job → N notifications)
+- **Foreign Key**: `notifications.job_id` → `jobs.id`
+- **Constraint**: `ON DELETE SET NULL` (job_id nullable)
 
 ### **7. SYSTEM TABLES RELATIONSHIPS**
 
@@ -2074,7 +2107,7 @@ audit_logs.company_id → companies.id
 
 ### **8. ATTACHMENT RELATIONSHIPS (ATS)**
 
-#### **8.1. Applications ↔ Attachments (One-to-Many)** 🔄
+#### **8.1. Applications ↔ Attachments (One-to-Many)**
 ```sql
 -- Quan hệ: 1 application có thể có nhiều attachments
 attachments.application_id → applications.id
@@ -2101,6 +2134,64 @@ attachments.user_id → users.id
 - **Mục đích**: HR upload CVs, certificates cho applications
 - **Cardinality**: 1:N (1 user → N attachments)
 - **Foreign Key**: `attachments.user_id` → `users.id`
+
+### **9. SUBSCRIPTION & PAYMENT RELATIONSHIPS**
+
+#### **9.1. Companies ↔ Subscription Plans (qua Company Subscriptions)**
+```sql
+-- Quan hệ: 1 company có nhiều đợt subscription theo thời gian
+company_subscriptions.company_id → companies.id
+company_subscriptions.plan_id → subscription_plans.id
+```
+- **Mục đích**: Gói dùng (FREE, PRO, ENTERPRISE) theo từng khoảng thời gian
+- **Cardinality**: Company (1) → (N) company_subscriptions → (1) subscription_plan mỗi record
+
+#### **9.2. Company Subscriptions ↔ Payments (One-to-Many)**
+```sql
+payments.company_subscription_id → company_subscriptions.id
+payments.company_id → companies.id
+```
+- **Mục đích**: Lịch sử thanh toán cho mỗi đợt subscription (VNPAY, v.v.)
+
+### **10. EMAIL RELATIONSHIPS**
+
+#### **10.1. Companies ↔ Email Templates (One-to-Many)**
+```sql
+email_templates.company_id → companies.id (nullable)
+```
+- **Mục đích**: Template email theo company; `company_id` NULL = global template
+
+#### **10.2. Email Outbox**
+```sql
+email_outbox.company_id → companies.id
+```
+- **Mục đích**: Hàng đợi gửi email; `aggregate_type`/`aggregate_id` tham chiếu entity (USER, APPLICATION, INTERVIEW) không FK trực tiếp
+
+### **11. AUTH & INVITATION RELATIONSHIPS**
+
+#### **11.1. Users ↔ User Invitations (One-to-Many)**
+```sql
+user_invitations.user_id → users.id
+user_invitations.company_id → companies.id
+user_invitations.created_by → users.id (nullable, Admin tạo invite)
+user_invitations.updated_by → users.id (nullable)
+```
+- **Mục đích**: Lời mời tham gia company (token, expires_at, used_at)
+
+#### **11.2. Users ↔ Email Verification Tokens / Password Reset Tokens (One-to-Many)**
+```sql
+email_verification_tokens.user_id → users.id
+password_reset_tokens.user_id → users.id
+```
+- **Mục đích**: Token xác thực email và reset mật khẩu (mỗi bảng 1 user, token, expires_at, used_at)
+
+#### **11.3. Invalidated Token**
+```sql
+invalidated_token.id = JWT jti (primary key, không FK)
+invalidated_token.created_by → users.id (nullable)
+invalidated_token.updated_by → users.id (nullable)
+```
+- **Mục đích**: Lưu JWT `jti` đã logout (blacklist); `id` là jti, có audit created_by/updated_by → users
 
 ## **QUAN HỆ TỔNG QUAN (ENTITY RELATIONSHIP DIAGRAM - ATS)**
 
@@ -2129,10 +2220,19 @@ attachments.user_id → users.id
 ### **Junction Tables:**
 - **role_permissions** (roles ↔ permissions)
 - **job_skills** (jobs ↔ skills)
+- **interview_interviewers** (interviews ↔ users, nhiều interviewer/1 interview; is_primary)
 
-### **System Tables:**
+### **Lookup / Config:**
+- **application_statuses** ↔ **applications** (status_id); company_id NULL = system default
+- **subscription_plans** (catalog) ← **company_subscriptions** ← **companies**; **payments** → company_subscriptions
+
+### **System / Support Tables:**
 - **user_sessions** ↔ **users**
-- **audit_logs** ↔ **users**, **companies** (multi-tenant)
+- **audit_logs** ↔ **users**, **companies**
+- **email_templates** ↔ **companies** (company_id nullable = global)
+- **email_outbox** ↔ **companies** (aggregate_type/aggregate_id không FK)
+- **user_invitations**, **email_verification_tokens**, **password_reset_tokens** ↔ **users**, **companies**
+- **invalidated_token** (id = JWT jti; created_by, updated_by → users)
 
 ## **UUID IMPLEMENTATION**
 

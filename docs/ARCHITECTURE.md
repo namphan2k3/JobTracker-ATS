@@ -1,16 +1,16 @@
-# 🏗️ JobTracker ATS Architecture Guide
+# JobTracker ATS Architecture Guide
 
-## 📋 Tổng quan kiến trúc
+## Tổng quan kiến trúc
 
 JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic Multi-Tenant** với thiết kế modular, đảm bảo tính đơn giản trong phát triển và triển khai ban đầu, đồng thời có thể dễ dàng tách thành microservices trong tương lai.
 
-### 🎯 Kiến trúc Multi-Tenant
+### Kiến trúc Multi-Tenant
 - **Cô lập Tenant**: Mỗi company = 1 tenant, cô lập dữ liệu bằng `company_id`
 - **Database dùng chung**: Single database với tách biệt dữ liệu multi-tenant
 - **Bảo mật cấp hàng**: Tất cả truy vấn tự động lọc theo `company_id`
 - **Khả năng mở rộng**: Dễ dàng mở rộng cho nhiều SME/Startup
 
-## 🎯 Kiến trúc tổng thể
+## Kiến trúc tổng thể
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -53,7 +53,7 @@ JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 🔧 Công nghệ chi tiết
+## Công nghệ chi tiết
 
 ### Backend Stack
 
@@ -106,43 +106,6 @@ JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic
 - **SLF4J + Logback**: Framework ghi log
 - **Micrometer**: Số liệu ứng dụng
 
-### Frontend Stack
-
-#### Core Framework
-- **React 18**: Thư viện UI với Concurrent Features
-- **JavaScript ES6+**: Tính năng JavaScript hiện đại
-- **Create React App (CRA)**: Công cụ build và development server
-- **Webpack**: Module bundler (tích hợp sẵn trong CRA)
-
-#### State Management
-- **Redux Toolkit**: Container trạng thái dự đoán được
-- **RTK Query**: Lấy dữ liệu và caching
-- **React Redux**: Liên kết React
-
-#### Routing & Navigation
-- **React Router v6**: Định tuyến phía client
-- **React Router DOM**: Định tuyến trình duyệt
-- **Lazy Loading**: Tách code cho hiệu suất
-
-#### UI & Styling
-- **TailwindCSS**: Framework CSS utility-first
-- **shadcn/ui**: Thư viện component có sẵn
-- **Lucide React**: Thư viện icon
-- **React Hook Form**: Quản lý form
-- **Yup**: Xác thực schema
-
-#### Data & Communication
-- **Axios**: HTTP client với interceptors
-- **React Query**: Quản lý trạng thái server
-- **WebSocket**: Giao tiếp thời gian thực
-- **React Toastify**: Thông báo toast
-
-#### Charts & Visualization
-- **Recharts**: Thư viện biểu đồ
-- **React Quill**: Trình soạn thảo văn bản phong phú
-- **React Dropzone**: Tải file lên
-- **dayjs**: Thao tác ngày tháng
-
 ### Database Design
 
 #### Primary Database: MySQL 8.0
@@ -185,7 +148,7 @@ JobTracker ATS (Applicant Tracking System) sử dụng kiến trúc **Monolithic
 - **JWT Token Management**: Access/refresh tokens
 - **Không có Google OAuth**: Chỉ dùng cho enterprise SSO (story khác)
 
-## 🏛️ Kiến trúc Backend (Monolithic)
+## Kiến trúc Backend (Monolithic)
 
 ### Package Structure
 ```
@@ -296,9 +259,9 @@ com.jobtracker.jobtracker_app
 - **Trường multi-tenant**: `company_id` trong tất cả business entities
 - **Hibernate Filters**: Tự động lọc theo `company_id`
 
-## 📋 ATS Workflow Architecture
+## ATS Workflow Architecture
 
-### 🎯 Modern ATS = Candidate Self-Service Portal
+### Modern ATS = Candidate Self-Service Portal
 
 **Core Principle**: Modern ATS là **Candidate Self-Service Portal**, không phải Document Management System.
 
@@ -344,7 +307,7 @@ API Request → Tenant Filter → Tự động lọc theo company_id
 Database Query → WHERE company_id = :tenantId → Trả về dữ liệu cô lập
 ```
 
-## 🔄 Data Flow
+## Data Flow
 
 ### 1. Authentication Flow (B2B SaaS Multi-Tenant)
 ```
@@ -433,7 +396,7 @@ Event Publishing → NotificationService → Email/WebSocket
 
 ### 4. CV Scoring & Matching Flow (Automatic Skill Matching) ➕
 
-> **🔑 CORE FEATURE**: Tự động tính điểm khớp giữa CV và Job Description dựa trên skills matching.
+> **CORE FEATURE**: Tự động tính điểm khớp giữa CV và Job Description dựa trên skills matching.
 
 #### Overview
 Khi candidate upload CV (PDF), system tự động:
@@ -445,7 +408,7 @@ Khi candidate upload CV (PDF), system tự động:
 
 ---
 
-## 🔁 Upload Application Flow
+## Upload Application Flow
 
 ### Step 1 – HR nhập application thủ công hoặc candidate tự ứng tuyển qua trang công ty
 
@@ -668,7 +631,7 @@ matchScore = Math.round(score)  // Integer 0-100
 
 ---
 
-## 📊 Output Structure
+## Output Structure
 
 **Each application returns:**
 
@@ -693,7 +656,7 @@ matchScore = Math.round(score)  // Integer 0-100
 
 ---
 
-## 🔌 API Integration Points
+## API Integration Points
 
 ### APIs that Trigger CV Scoring
 
@@ -730,7 +693,7 @@ matchScore = Math.round(score)  // Integer 0-100
 
 ---
 
-## 🗄️ Database Schema
+## Database Schema
 
 **Fields in `applications` table:**
 
@@ -754,7 +717,7 @@ INDEX idx_applications_job_match_score (job_id, match_score) COMMENT 'Index cho 
 
 ---
 
-## ⚙️ Background Processing
+## Background Processing
 
 **Implementation:**
 - CV scoring chạy trong **background** (không block API response)
@@ -814,7 +777,7 @@ CDN URL Generation → Link to Application (user_id = HR user_id)
 Database Update → File Metadata (public_id, format, size, user_id = HR user_id)
 ```
 
-## 🚀 Performance Considerations
+## Performance Considerations
 
 ### Tối ưu Database
 - **Chiến lược Indexing**: Primary keys, foreign keys, các trường tìm kiếm
@@ -835,7 +798,7 @@ Database Update → File Metadata (public_id, format, size, user_id = HR user_id
 - **Memoization**: React.memo, useMemo
 - **Tối ưu Bundle**: Tối ưu build CRA
 
-## 🏢 Multi-Tenant Architecture
+## Multi-Tenant Architecture
 
 ### Mô hình Tenant
 - **Company là Tenant**: Mỗi company = 1 tenant trong hệ thống
@@ -879,7 +842,7 @@ public class ApplicationService {
 - **Ngăn chặn Cross-Tenant**: Không cho phép truy cập dữ liệu của tenant khác
 - **Audit Trail**: Ghi log tất cả các nỗ lực truy cập cross-tenant
 
-## 🔒 Security Architecture
+## Security Architecture
 
 ### Xác thực
 - **JWT Tokens**: Xác thực không trạng thái
@@ -902,7 +865,7 @@ public class ApplicationService {
 - **Cô lập dữ liệu Multi-Tenant**: Tự động lọc `company_id` ở tất cả truy vấn
 - **Xác thực Tenant Context**: Xác minh user thuộc company trước khi truy cập dữ liệu
 
-## 📊 Monitoring & Observability
+## Monitoring & Observability
 
 ### Số liệu ứng dụng
 - **Spring Boot Actuator**: Health checks, số liệu
@@ -921,7 +884,7 @@ public class ApplicationService {
 - **Error Response Format**: Định dạng lỗi nhất quán
 - **Error Monitoring**: Theo dõi exception
 
-## 🎯 Scalability Considerations
+## Scalability Considerations
 
 ### Mở rộng ngang
 - **Thiết kế không trạng thái**: Xác thực dựa trên JWT
@@ -942,7 +905,7 @@ public class ApplicationService {
 - **Database Per Service**: Cô lập service (có thể tách Applications service riêng)
 - **Chiến lược Multi-Tenant**: Shared database → Database per tenant (mở rộng tương lai)
 
-## 📈 Monitoring & Alerting
+## Monitoring & Alerting
 
 ### Sức khỏe ứng dụng
 - **Health Endpoints**: /actuator/health
