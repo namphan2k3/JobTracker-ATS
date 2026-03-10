@@ -1,6 +1,7 @@
 package com.jobtracker.jobtracker_app.mappers;
 
-import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusRequest;
+import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusCreationRequest;
+import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusUpdateRequest;
 import com.jobtracker.jobtracker_app.dto.responses.application_status.ApplicationStatusResponse;
 import com.jobtracker.jobtracker_app.entities.ApplicationStatus;
 import org.mapstruct.BeanMapping;
@@ -11,12 +12,12 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
 public interface ApplicationStatusMapper {
-    ApplicationStatus toApplicationStatus(ApplicationStatusRequest request);
+    ApplicationStatus toApplicationStatus(ApplicationStatusCreationRequest request);
 
     @Mapping(target = "companyId", source = "company.id")
     ApplicationStatusResponse toApplicationStatusResponse(ApplicationStatus applicationStatus);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateApplicationStatus(@MappingTarget ApplicationStatus applicationStatus, ApplicationStatusRequest request);
+    void updateApplicationStatus(@MappingTarget ApplicationStatus applicationStatus, ApplicationStatusUpdateRequest request);
 }
 

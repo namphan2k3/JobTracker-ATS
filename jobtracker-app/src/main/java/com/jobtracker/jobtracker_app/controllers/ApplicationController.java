@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -92,7 +91,7 @@ public class ApplicationController {
     @PatchMapping("/applications/{id}/status")
     public ApiResponse<UpdateApplicationStatusResponse> updateStatus(
             @PathVariable String id,
-            @RequestBody @Valid ApplicationStatusUpdateRequest request) {
+            @RequestBody @Valid ApplicationUpdateStatusRequest request) {
         return ApiResponse.<UpdateApplicationStatusResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.APPLICATION_STATUS_UPDATE_SUCCESS))
                 .data(applicationService.updateStatus(id, request))

@@ -11,7 +11,7 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ApplicationStatusUpdateRequest {
+public class ApplicationUpdateStatusRequest {
 
     @NotBlank(message = "{application.status_id.not_blank}")
     String statusId;
@@ -22,7 +22,6 @@ public class ApplicationStatusUpdateRequest {
 
     ManualOfferRequest offerRequest;
 
-    // Frontend quyết định dựa trên cấu hình autoSendEmail / askBeforeSend của status
     Boolean sendEmail;
 }
 

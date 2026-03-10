@@ -321,7 +321,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional
     @PreAuthorize("hasAuthority('APPLICATION_UPDATE')")
     public UpdateApplicationStatusResponse updateStatus(String id,
-                                                        ApplicationStatusUpdateRequest request) {
+                                                        ApplicationUpdateStatusRequest request) {
 
         User currentUser = securityUtils.getCurrentUser();
 
@@ -378,7 +378,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .build();
     }
 
-    private static boolean isSendEmail(ApplicationStatusUpdateRequest request,
+    private static boolean isSendEmail(ApplicationUpdateStatusRequest request,
                                        ApplicationStatus currentStatus,
                                        ApplicationStatus newStatus) {
         StatusType currentType = currentStatus.getStatusType();

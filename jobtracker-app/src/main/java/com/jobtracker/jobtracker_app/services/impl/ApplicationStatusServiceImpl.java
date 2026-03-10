@@ -1,6 +1,7 @@
 package com.jobtracker.jobtracker_app.services.impl;
 
-import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusRequest;
+import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusCreationRequest;
+import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusUpdateRequest;
 import com.jobtracker.jobtracker_app.dto.responses.application_status.ApplicationStatusResponse;
 import com.jobtracker.jobtracker_app.entities.ApplicationStatus;
 import com.jobtracker.jobtracker_app.entities.User;
@@ -31,7 +32,7 @@ public class ApplicationStatusServiceImpl implements ApplicationStatusService {
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('APPLICATION_STATUS_CREATE')")
-    public ApplicationStatusResponse create(ApplicationStatusRequest request) {
+    public ApplicationStatusResponse create(ApplicationStatusCreationRequest request) {
         User currentUser = securityUtils.getCurrentUser();
 
         if (request.getStatusType() == null) {
@@ -81,20 +82,12 @@ public class ApplicationStatusServiceImpl implements ApplicationStatusService {
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('APPLICATION_STATUS_UPDATE')")
-    public ApplicationStatusResponse update(String id, ApplicationStatusRequest request) {
+    public ApplicationStatusResponse update(String id, ApplicationStatusUpdateRequest request) {
         User currentUser = securityUtils.getCurrentUser();
 
         ApplicationStatus applicationStatus = applicationStatusRepository
-                .findByIdAndCompany_IdAndDeletedAtIsNull(id, currentUser.getCompany().getId())
+                .findActiveStatus(id, currentUser.getCompany().getId())
                 .orElseThrow(() -> new AppException(ErrorCode.APPLICATION_STATUS_NOT_EXISTED));
-
-        if (request.getName() != null && !request.getName().equals(applicationStatus.getName())) {
-            if (applicationStatusRepository
-                    .findByNameAndCompany_IdAndDeletedAtIsNull(request.getName(), currentUser.getCompany().getId())
-                    .isPresent()) {
-                throw new AppException(ErrorCode.NAME_EXISTED);
-            }
-        }
 
         applicationStatusMapper.updateApplicationStatus(applicationStatus, request);
         if (request.getStatusType() != null && request.getIsTerminal() == null) {

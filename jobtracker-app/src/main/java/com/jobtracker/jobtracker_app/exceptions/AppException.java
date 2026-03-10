@@ -2,11 +2,12 @@ package com.jobtracker.jobtracker_app.exceptions;
 
 import lombok.*;
 
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
-@Setter
 public class AppException extends RuntimeException {
-    ErrorCode errorCode;
+    private final ErrorCode errorCode;
+
+    public AppException(ErrorCode errorCode) {
+        super(errorCode.getMessage()); // QUAN TRỌNG
+        this.errorCode = errorCode;
+    }
 }

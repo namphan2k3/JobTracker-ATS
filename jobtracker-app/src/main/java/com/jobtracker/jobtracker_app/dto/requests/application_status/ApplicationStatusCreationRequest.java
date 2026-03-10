@@ -12,7 +12,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ApplicationStatusRequest {
+public class ApplicationStatusCreationRequest {
     @NotBlank(message = "{application_status.name.not_blank}")
     @Size(max = 50, message = "{application_status.name.size}")
     String name;
@@ -31,7 +31,6 @@ public class ApplicationStatusRequest {
 
     Integer sortOrder;
 
-    // Email automation config per status
     Boolean autoSendEmail;
 
     Boolean askBeforeSend;

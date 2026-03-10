@@ -24,7 +24,7 @@ public interface ApplicationService {
 
     ApplicationResponse createApplication(ApplicationCreateRequest request);
 
-    UpdateApplicationStatusResponse updateStatus(String id, ApplicationStatusUpdateRequest request);
+    UpdateApplicationStatusResponse updateStatus(String id, ApplicationUpdateStatusRequest request);
 
     ApplicationResponse updateApplication(String id, ApplicationUpdateRequest request);
 

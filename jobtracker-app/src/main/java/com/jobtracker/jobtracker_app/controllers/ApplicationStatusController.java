@@ -1,6 +1,7 @@
 package com.jobtracker.jobtracker_app.controllers;
 
-import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusRequest;
+import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusCreationRequest;
+import com.jobtracker.jobtracker_app.dto.requests.application_status.ApplicationStatusUpdateRequest;
 import com.jobtracker.jobtracker_app.dto.responses.common.ApiResponse;
 import com.jobtracker.jobtracker_app.dto.responses.application_status.ApplicationStatusResponse;
 import com.jobtracker.jobtracker_app.services.ApplicationStatusService;
@@ -23,7 +24,7 @@ public class ApplicationStatusController {
     LocalizationUtils localizationUtils;
 
     @PostMapping
-    public ApiResponse<ApplicationStatusResponse> create(@RequestBody @Valid ApplicationStatusRequest request) {
+    public ApiResponse<ApplicationStatusResponse> create(@RequestBody @Valid ApplicationStatusCreationRequest request) {
         return ApiResponse.<ApplicationStatusResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.APPLICATION_STATUS_CREATE_SUCCESS))
                 .data(applicationStatusService.create(request))
@@ -48,7 +49,7 @@ public class ApplicationStatusController {
 
     @PutMapping("/{id}")
     public ApiResponse<ApplicationStatusResponse> update(@PathVariable String id,
-                                                         @RequestBody @Valid ApplicationStatusRequest request) {
+                                                         @RequestBody @Valid ApplicationStatusUpdateRequest request) {
         return ApiResponse.<ApplicationStatusResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.APPLICATION_STATUS_UPDATE_SUCCESS))
                 .data(applicationStatusService.update(id, request))
