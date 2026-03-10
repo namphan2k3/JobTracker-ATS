@@ -335,40 +335,26 @@ public class ApplicationServiceImpl implements ApplicationService {
         ApplicationStatus currentStatus = application.getStatus();
 
         ApplicationStatus newStatus = applicationStatusRepository
-                .findByIdAndCompany_IdAndIsActiveTrueAndDeletedAtIsNull(
+                .findActiveStatus(
                         request.getStatusId(),
                         currentUser.getCompany().getId()
                 )
                 .orElseThrow(() -> new AppException(ErrorCode.APPLICATION_STATUS_NOT_EXISTED));
 
-        StatusType currentType = currentStatus.getStatusType();
-        StatusType newType = newStatus.getStatusType();
+        boolean shouldSendEmail = isSendEmail(request, currentStatus, newStatus);
 
-        // Không cho chuyển từ terminal
-        if (currentType.isTerminal()) {
-            throw new AppException(ErrorCode.APPLICATION_STATUS_IS_TERMINAL);
-        }
+        if (shouldSendEmail) {
+            if (newStatus.getStatusType().equals(StatusType.OFFER)) {
+                emailService.sendManualOffer(application, request.getOfferRequest());
+            }
 
-        // Không cho chuyển về chính nó
-        if (currentStatus.getId().equals(newStatus.getId())) {
-            throw new AppException(ErrorCode.APPLICATION_STATUS_SAME);
-        }
+            if (newStatus.getStatusType().equals(StatusType.REJECTED)) {
+                emailService.sendCandidateRejected(application, request.getCustomMessage());
+            }
 
-        // Validate business lifecycle bằng order
-        if (!currentType.canMoveTo(newType)) {
-            throw new AppException(ErrorCode.APPLICATION_STATUS_INVALID_TRANSITION);
-        }
-
-        if(newStatus.getStatusType().equals(StatusType.OFFER)){
-            emailService.sendManualOffer(application, request.getOfferRequest());
-        }
-
-        if(newStatus.getStatusType().equals(StatusType.REJECTED)){
-            emailService.sendCandidateRejected(application, request.getCustomMessage());
-        }
-
-        if(newStatus.getStatusType().equals(StatusType.HIRED)){
-            emailService.sendCandidateHired(application, request.getCustomMessage());
+            if (newStatus.getStatusType().equals(StatusType.HIRED)) {
+                emailService.sendCandidateHired(application, request.getCustomMessage());
+            }
         }
 
         ApplicationStatusHistory history = ApplicationStatusHistory.builder()
@@ -390,6 +376,33 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .notes(request.getNotes())
                 .updatedAt(application.getUpdatedAt())
                 .build();
+    }
+
+    private static boolean isSendEmail(ApplicationStatusUpdateRequest request,
+                                       ApplicationStatus currentStatus,
+                                       ApplicationStatus newStatus) {
+        StatusType currentType = currentStatus.getStatusType();
+        StatusType newType = newStatus.getStatusType();
+
+        // Không cho chuyển từ terminal
+        if (currentType.isTerminal()) {
+            throw new AppException(ErrorCode.APPLICATION_STATUS_IS_TERMINAL);
+        }
+
+        // Không cho chuyển về chính nó
+        if (currentStatus.getId().equals(newStatus.getId())) {
+            throw new AppException(ErrorCode.APPLICATION_STATUS_SAME);
+        }
+
+        // Validate business lifecycle bằng order
+        if (!currentType.canMoveTo(newType)) {
+            throw new AppException(ErrorCode.APPLICATION_STATUS_INVALID_TRANSITION);
+        }
+
+        Boolean autoSendEmail = newStatus.getAutoSendEmail();
+        return request.getSendEmail() != null
+                ? request.getSendEmail()
+                : Boolean.TRUE.equals(autoSendEmail);
     }
 
     @Override

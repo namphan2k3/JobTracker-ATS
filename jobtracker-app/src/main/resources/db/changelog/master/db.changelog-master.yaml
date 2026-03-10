@@ -8,6 +8,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/table/create-table-application-statuses.yaml
   - include:
+      file: db/changelog/table/alter-table-application-statuses-email-config.yaml
+  - include:
       file: db/changelog/table/create-table-email-templates.yaml
   - include:
       file: db/changelog/table/create-table-subscription-plans.yaml

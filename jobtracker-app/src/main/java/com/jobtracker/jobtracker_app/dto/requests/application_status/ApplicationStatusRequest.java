@@ -31,6 +31,11 @@ public class ApplicationStatusRequest {
 
     Integer sortOrder;
 
+    // Email automation config per status
+    Boolean autoSendEmail;
+
+    Boolean askBeforeSend;
+
     Boolean isTerminal;
 
     Boolean isDefault;

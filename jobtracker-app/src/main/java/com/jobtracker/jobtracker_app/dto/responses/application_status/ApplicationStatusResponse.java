@@ -20,6 +20,8 @@ public class ApplicationStatusResponse {
     String color;
     StatusType statusType;
     Integer sortOrder;
+     Boolean autoSendEmail;
+     Boolean askBeforeSend;
     Boolean isTerminal;
     Boolean isDefault;
     Boolean isActive;

@@ -23,10 +23,12 @@ public interface ApplicationStatusRepository extends JpaRepository<ApplicationSt
 
     Optional<ApplicationStatus> findByIdAndCompany_IdAndIsActiveTrueAndDeletedAtIsNull(String id, String companyId);
 
-    List<ApplicationStatus> findByCompany_IdAndDeletedAtIsNull(String companyId);
+    @Query("SELECT s FROM ApplicationStatus s WHERE s.id = :id AND (s.company.id = :companyId OR s.company IS NULL) " +
+            "AND s.isActive = true AND s.deletedAt IS NULL")
+    Optional<ApplicationStatus> findActiveStatus(@Param("id") String id, @Param("companyId") String companyId);
 
     @Query("SELECT s FROM ApplicationStatus s WHERE (s.company.id = :companyId OR s.company IS NULL) " +
             "AND s.isActive = true AND s.deletedAt IS NULL ORDER BY s.sortOrder")
-    List<ApplicationStatus> findActiveStatusesForDashboard(@Param("companyId") String companyId);
+    List<ApplicationStatus> findActiveStatuses(@Param("companyId") String companyId);
 }
 

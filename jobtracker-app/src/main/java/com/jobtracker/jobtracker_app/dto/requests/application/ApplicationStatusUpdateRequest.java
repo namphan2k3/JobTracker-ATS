@@ -21,5 +21,8 @@ public class ApplicationStatusUpdateRequest {
     String customMessage;
 
     ManualOfferRequest offerRequest;
+
+    // Frontend quyết định dựa trên cấu hình autoSendEmail / askBeforeSend của status
+    Boolean sendEmail;
 }
 

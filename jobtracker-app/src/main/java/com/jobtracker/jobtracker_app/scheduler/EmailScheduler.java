@@ -58,6 +58,7 @@ public class EmailScheduler {
 
                 if (retry >= email.getMaxRetries()) {
                     email.setStatus(EmailStatus.FAILED);
+                    email.setFailedReason(ex.getLocalizedMessage());
                 } else {
                     email.setRetryCount(retry);
                     email.setNextRetryAt(LocalDateTime.now().plusMinutes(5));

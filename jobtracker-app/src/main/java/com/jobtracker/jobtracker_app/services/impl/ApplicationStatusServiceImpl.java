@@ -72,7 +72,7 @@ public class ApplicationStatusServiceImpl implements ApplicationStatusService {
         User currentUser = securityUtils.getCurrentUser();
 
         return applicationStatusRepository
-                .findByCompany_IdAndDeletedAtIsNull(currentUser.getCompany().getId())
+                .findActiveStatuses(currentUser.getCompany().getId())
                 .stream()
                 .map(applicationStatusMapper::toApplicationStatusResponse)
                 .toList();

@@ -82,7 +82,7 @@ public class DashboardServiceImpl implements DashboardService {
         Map<String, Long> countByStatusId = statusCounts.stream()
                 .collect(Collectors.toMap(ApplicationsByStatusResponse::getStatusId, ApplicationsByStatusResponse::getCount));
 
-        return applicationStatusRepository.findActiveStatusesForDashboard(companyId).stream()
+        return applicationStatusRepository.findActiveStatuses(companyId).stream()
                 .map(status -> ApplicationsByStatusResponse.builder()
                         .statusId(status.getId())
                         .statusName(status.getName())

@@ -42,6 +42,12 @@ public class ApplicationStatus extends FullAuditEntity {
     @Column(name = "sort_order", nullable = false)
     Integer sortOrder = 0;
 
+    @Column(name = "auto_send_email")
+    Boolean autoSendEmail = false;
+
+    @Column(name = "ask_before_send")
+    Boolean askBeforeSend = false;
+
     @Column(name = "is_terminal")
     Boolean isTerminal = false;
 

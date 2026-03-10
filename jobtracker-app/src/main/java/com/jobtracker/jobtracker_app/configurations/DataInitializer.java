@@ -238,18 +238,23 @@ public class DataInitializer implements CommandLineRunner {
             String systemUser = "system";
 
             List<ApplicationStatus> statuses = List.of(
+                    // NEW: không auto gửi email; email xác nhận apply dùng workflow riêng APPLICATION_CONFIRMATION
                     createApplicationStatus("NEW", "Mới", "Ứng viên vừa nộp đơn", "#6B7280", 1,
-                            StatusType.APPLIED, false, true, systemUser),
+                            StatusType.APPLIED, false, false, true, true, systemUser),
+                    // SCREENING / INTERVIEWING: chuyển động nội bộ, mặc định không auto gửi và không hỏi
                     createApplicationStatus("SCREENING", "Sàng lọc", "Đang sàng lọc hồ sơ", "#3B82F6", 2,
-                            StatusType.SCREENING, false, false, systemUser),
+                            StatusType.SCREENING, false, false, false, false, systemUser),
                     createApplicationStatus("INTERVIEWING", "Phỏng vấn", "Đang trong quá trình phỏng vấn", "#F59E0B", 3,
-                            StatusType.INTERVIEW, false, false, systemUser),
+                            StatusType.INTERVIEW, false, false, false, false, systemUser),
+                    // OFFERED: mặc định hỏi trước khi gửi email (askBeforeSend = true), autoSendEmail = false
                     createApplicationStatus("OFFERED", "Đã đề xuất", "Đã gửi offer cho ứng viên", "#8B5CF6", 4,
-                            StatusType.OFFER, false, false, systemUser),
+                            StatusType.OFFER, false, true, false, false, systemUser),
+                    // HIRED: thường đã deal xong qua kênh khác, mặc định hỏi trước khi gửi
                     createApplicationStatus("HIRED", "Đã tuyển", "Ứng viên đã được tuyển", "#10B981", 5,
-                            StatusType.HIRED, true, false, systemUser),
+                            StatusType.HIRED, false, true, false, false, systemUser),
+                    // REJECTED: quan trọng phải thông báo, mặc định hỏi trước khi gửi
                     createApplicationStatus("REJECTED", "Từ chối", "Ứng viên bị từ chối", "#EF4444", 6,
-                            StatusType.REJECTED, true, false, systemUser)
+                            StatusType.REJECTED, false, true, false, false, systemUser)
             );
             
             applicationStatusRepository.saveAll(statuses);
@@ -264,6 +269,8 @@ public class DataInitializer implements CommandLineRunner {
             String color,
             Integer sortOrder,
             StatusType statusType,
+            boolean autoSendEmail,
+            boolean askBeforeSend,
             boolean isTerminal,
             boolean isDefault,
             String createdBy) {
@@ -274,6 +281,8 @@ public class DataInitializer implements CommandLineRunner {
                 .color(color)
                 .sortOrder(sortOrder)
                 .statusType(statusType)
+                .autoSendEmail(autoSendEmail)
+                .askBeforeSend(askBeforeSend)
                 .isTerminal(isTerminal)
                 .isDefault(isDefault)
                 .isActive(true)
@@ -294,11 +303,11 @@ public class DataInitializer implements CommandLineRunner {
                 "Candidate workflow layout",
                 "{{company_name}} - Candidate workflow email",
                 """
-                        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 640px; margin: 0 auto;">
-                            <div style="padding: 24px 24px 16px 24px;">
+                        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0 auto;">
+                            <div style="font-size: 16px;">
                                 {{{content}}}
                             </div>
-                            <div style="padding: 16px 24px 24px 24px; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb;">
+                            <div style="font-size: 14px; color: #6b7280; border-top: 1px solid #e5e7eb;">
                                 <p style="margin: 0 0 8px 0;">
                                     Bạn có thể xem trạng thái hồ sơ tại đây:
                                 </p>

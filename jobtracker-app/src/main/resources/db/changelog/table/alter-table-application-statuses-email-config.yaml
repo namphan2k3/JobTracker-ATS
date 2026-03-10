@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: alter-table-application-statuses-email-config
+      author: namphan
+      changes:
+        - addColumn:
+            tableName: application_statuses
+            columns:
+              - column:
+                  name: auto_send_email
+                  type: boolean
+                  defaultValueBoolean: false
+                  remarks: "Tự động tạo email workflow khi chuyển status này"
+              - column:
+                  name: ask_before_send
+                  type: boolean
+                  defaultValueBoolean: false
+                  remarks: "Hỏi mỗi khi change status"
+
