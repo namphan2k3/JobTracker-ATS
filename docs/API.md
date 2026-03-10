@@ -1763,7 +1763,12 @@ Cập nhật status của application (workflow: APPLIED → SCREENING → INTER
 ```json
 {
   "statusId": "status2a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-  "notes": "Moved to screening phase"
+  "notes": "Moved to screening phase",
+  "customMessage": "Tin nhắn cá nhân gửi cho ứng viên (optional)",
+  "offerRequest": {
+    "...": "Trường chi tiết offer nếu status type = OFFER (xem phần Offer API)"
+  },
+  "sendEmailToCandidate": true
 }
 ```
 
@@ -1775,7 +1780,7 @@ Cập nhật status của application (workflow: APPLIED → SCREENING → INTER
   "data": {
     "id": "app1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
     "statusId": "status2a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
-    "previousStatus": "applied",
+    "previousStatus": "NEW",
     "notes": "Moved to screening phase",
     "updatedAt": "2024-01-15T10:30:00Z"
   },
@@ -2675,13 +2680,13 @@ Lấy lịch sử payments cho một bản ghi subscription cụ thể.
 > - **Notification Priorities** → Field `notifications.priority` (VARCHAR, các giá trị cố định: HIGH, MEDIUM, LOW)
 > - **Attachment Types** → Field `attachments.attachmentType` (VARCHAR, các giá trị cố định: RESUME, COVER_LETTER, CERTIFICATE, PORTFOLIO, OTHER)
 
-> **LOOKUP TABLE**: Application Statuses là lookup table vì cần metadata (display_name, color, sort_order) và flexibility:
-> - **Application Statuses** → Lookup table `application_statuses` (name: applied, screening, interview, offer, hired, rejected; status_type: APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED)
+> **LOOKUP TABLE**: Application Statuses là lookup table vì cần metadata (display_name, color, sort_order, email config) và flexibility:
+> - **Application Statuses** → Lookup table `application_statuses` (name: NEW, SCREENING, INTERVIEWING, OFFERED, HIRED, REJECTED; status_type: APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED; kèm theo `auto_send_email`, `ask_before_send` để điều khiển email automation khi đổi status)
 
 ### 1. Get Application Statuses
 **GET** `/admin/application-statuses`
 
-Lấy danh sách application statuses của **company hiện tại** cùng metadata (display_name, color, sort_order, statusType, isTerminal, isDefault) để hiển thị trong UI.
+Lấy danh sách application statuses của **company hiện tại** cùng metadata (display_name, color, sort_order, statusType, isTerminal, isDefault, autoSendEmail, askBeforeSend) để hiển thị trong UI và điều khiển hành vi email.
 
 > **Application Status = cấu hình pipeline ứng tuyển per company**, không phải ENUM cứng toàn hệ thống.  
 > Mỗi company chỉ nhìn/quản lý được pipeline của chính mình; business rule lifecycle & multi-tenant đã được mô tả chi tiết ở API `PATCH /applications/{id}/status`.
@@ -2708,6 +2713,8 @@ Authorization: Bearer <access_token>
       "color": "#6B7280",
       "statusType": "APPLIED",
       "sortOrder": 1,
+      "autoSendEmail": false,
+      "askBeforeSend": false,
       "isTerminal": false,
       "isDefault": true,
       "isActive": true,
@@ -2726,6 +2733,8 @@ Authorization: Bearer <access_token>
       "color": "#3B82F6",
       "statusType": "SCREENING",
       "sortOrder": 2,
+      "autoSendEmail": false,
+      "askBeforeSend": false,
       "isTerminal": false,
       "isDefault": false,
       "isActive": true,
@@ -2747,6 +2756,10 @@ Tạo application status **mới cho company hiện tại** (chỉ dành cho ADM
 
 **statusType** (bắt buộc): Một trong các giá trị `APPLIED`, `SCREENING`, `INTERVIEW`, `OFFER`, `HIRED`, `REJECTED`. Nếu không truyền `isTerminal`, hệ thống tự set theo `statusType` (HIRED/REJECTED → true).
 
+**Email config per status**:
+- `autoSendEmail` (optional, default = `false`): Nếu `true` và client **không** truyền `sendEmail` khi gọi API đổi status, backend sẽ **tự động** gửi email workflow tương ứng (OFFERED/HIRED/REJECTED).
+- `askBeforeSend` (optional, default = `false`): Gợi ý cho UI hiển thị popup hỏi HR có gửi email không khi chuyển sang status này (logic UI, backend không enforce).
+
 #### Request Headers
 ```
 Authorization: Bearer <access_token>
@@ -2762,6 +2775,8 @@ Content-Type: application/json
   "color": "#3B82F6",
   "statusType": "SCREENING",
   "sortOrder": 2,
+  "autoSendEmail": false,
+  "askBeforeSend": false,
   "isTerminal": false,
   "isDefault": false,
   "isActive": true
@@ -2782,6 +2797,8 @@ Content-Type: application/json
     "color": "#3B82F6",
     "statusType": "SCREENING",
     "sortOrder": 2,
+      "autoSendEmail": false,
+      "askBeforeSend": false,
     "isTerminal": false,
     "isDefault": false,
     "isActive": true,
@@ -2798,7 +2815,7 @@ Content-Type: application/json
 ### 3. Update Application Status
 **PUT** `/admin/application-statuses/{id}`
 
-Cập nhật application status (display_name, color, sort_order, statusType, isTerminal, isDefault, etc.). Tất cả fields đều optional (partial update).
+Cập nhật application status (display_name, color, sort_order, statusType, isTerminal, isDefault, autoSendEmail, askBeforeSend, etc.). Tất cả fields đều optional (partial update).
 
 #### Request Body
 ```json
@@ -2807,6 +2824,8 @@ Cập nhật application status (display_name, color, sort_order, statusType, is
   "color": "#F97316",
   "statusType": "SCREENING",
   "sortOrder": 4,
+  "autoSendEmail": false,
+  "askBeforeSend": true,
   "isTerminal": false,
   "isDefault": false,
   "isActive": true
@@ -2827,6 +2846,8 @@ Cập nhật application status (display_name, color, sort_order, statusType, is
     "color": "#F97316",
     "statusType": "SCREENING",
     "sortOrder": 4,
+      "autoSendEmail": false,
+      "askBeforeSend": true,
     "isTerminal": false,
     "isDefault": false,
     "isActive": true,

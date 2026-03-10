@@ -666,7 +666,23 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
     - Liên kết tới `Interview` / `Application`.
   - Worker gửi email thông báo đổi lịch tới candidate và interviewers.
 
-#### 6.4.4. HR gửi Offer (`OFFER_LETTER`)
+#### 6.4.4. Cấu hình email automation per Application Status
+
+- Mỗi record `application_statuses` ngoài metadata hiển thị còn có 2 cờ điều khiển email:
+  - `auto_send_email`: backend dùng làm **default** – nếu API đổi trạng thái **không truyền** `sendEmail`, hệ thống sẽ gửi email khi `auto_send_email = TRUE` và status type phù hợp (OFFER/HIRED/REJECTED).
+  - `ask_before_send`: UI dùng để quyết định có bật popup hỏi HR "**Có gửi email cho ứng viên không?**" khi chuyển sang status đó hay không.
+- Đề xuất default cho system pipeline:
+  - `NEW` (APPLIED): `auto_send_email = FALSE`, `ask_before_send = FALSE` (email xác nhận apply dùng flow `APPLICATION_CONFIRMATION` riêng).
+  - `SCREENING` (SCREENING): `auto_send_email = FALSE`, `ask_before_send = FALSE`.
+  - `INTERVIEWING` (INTERVIEW): `auto_send_email = FALSE`, `ask_before_send = FALSE`.
+  - `OFFERED` (OFFER): `auto_send_email = FALSE`, `ask_before_send = TRUE` (UI nên hỏi HR trước khi gửi offer email).
+  - `HIRED` (HIRED): `auto_send_email = FALSE`, `ask_before_send = TRUE`.
+  - `REJECTED` (REJECTED): `auto_send_email = FALSE`, `ask_before_send = TRUE` (luôn gợi ý HR gửi email từ chối, nhưng vẫn cho phép chọn không gửi).
+- API đổi trạng thái (`PATCH /applications/{id}/status`) nhận thêm field `sendEmail`:
+  - Nếu `sendEmail` **không null** → backend tôn trọng đúng giá trị client gửi (true/false).
+  - Nếu `sendEmail` **null** → backend fallback dùng `auto_send_email` trên status mới để quyết định có tạo email workflow hay không.
+
+#### 6.4.5. HR gửi Offer (`OFFER_LETTER`)
 
 - **Trigger**: HR trong hồ sơ ứng viên bấm **Send Offer**.
 - **Form**:
@@ -685,7 +701,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
   - Worker gửi email.
 - **Kết quả**: Ứng viên nhận được offer với format chuyên nghiệp, đồng bộ theo template.
 
-#### 6.4.5. HR reject nhiều ứng viên cùng lúc (bulk reject)
+#### 6.4.6. HR reject nhiều ứng viên cùng lúc (bulk reject)
 
 - **Trigger**: HR tick chọn nhiều applications (ví dụ 30 ứng viên) rồi chọn hành động **Reject**.
 - **Flow**:
@@ -704,7 +720,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
   - Không treo hệ thống khi reject số lượng lớn.
   - Mỗi ứng viên chỉ nhận đúng một email reject, không gửi trùng.
 
-#### 6.4.6. Link xem trạng thái hồ sơ trong email
+#### 6.4.7. Link xem trạng thái hồ sơ trong email
 
 - Trong mọi email liên quan tới ứng tuyển (apply, interview, offer, reject) có thể chèn link:
   - `View your application status: app.wesats.com/status?token={applicationToken}`.

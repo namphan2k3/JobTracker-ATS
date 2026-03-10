@@ -233,6 +233,8 @@ CREATE TABLE application_statuses (
     is_default BOOLEAN DEFAULT FALSE COMMENT 'Auto-assign khi tạo application mới',
 
     -- Control
+    auto_send_email BOOLEAN DEFAULT FALSE COMMENT 'TRUE = tự động tạo email workflow khi chuyển sang status này (nếu API không override)',
+    ask_before_send BOOLEAN DEFAULT FALSE COMMENT 'TRUE = UI nên hỏi HR có muốn gửi email hay không khi đổi sang status này',
     is_active BOOLEAN DEFAULT TRUE,
 
     -- Audit
