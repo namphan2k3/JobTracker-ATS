@@ -19,7 +19,8 @@ public class EmailVariableResolver {
     public Map<String, Object> buildAllVariables(EmailContext context) {
         Map<String, Object> map = new HashMap<>();
         for (VariableResolver resolver : resolvers) {
-            map.put(resolver.getKey(), resolver.resolve(context));
+            Object value = resolver.resolve(context);
+            map.put(resolver.getKey(), value == null ? "" : value);
         }
         return map;
     }
