@@ -9,14 +9,15 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.jobtracker.jobtracker_app.dto.requests.auth.*;
+import com.jobtracker.jobtracker_app.dto.requests.subscription.CompanySubscriptionRequest;
 import com.jobtracker.jobtracker_app.dto.responses.auth.*;
 import com.jobtracker.jobtracker_app.dto.responses.company.CompanyRegisterResponse;
 import com.jobtracker.jobtracker_app.dto.responses.company.CompanySelfSignupResponse;
 import com.jobtracker.jobtracker_app.entities.*;
+import com.jobtracker.jobtracker_app.enums.SubscriptionStatus;
 import com.jobtracker.jobtracker_app.enums.SystemRole;
-import com.jobtracker.jobtracker_app.mappers.UserMapper;
-import com.jobtracker.jobtracker_app.repositories.CompanyRepository;
-import com.jobtracker.jobtracker_app.repositories.RoleRepository;
+import com.jobtracker.jobtracker_app.repositories.*;
+import com.jobtracker.jobtracker_app.services.CompanySubscriptionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,11 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jobtracker.jobtracker_app.dto.responses.user.UserInfo;
 import com.jobtracker.jobtracker_app.exceptions.AppException;
 import com.jobtracker.jobtracker_app.exceptions.ErrorCode;
-import com.jobtracker.jobtracker_app.repositories.EmailVerificationTokenRepository;
-import com.jobtracker.jobtracker_app.repositories.InvalidatedRepository;
-import com.jobtracker.jobtracker_app.repositories.PasswordResetTokenRepository;
-import com.jobtracker.jobtracker_app.repositories.UserInvitationRepository;
-import com.jobtracker.jobtracker_app.repositories.UserRepository;
 import com.jobtracker.jobtracker_app.services.AuthService;
 import com.jobtracker.jobtracker_app.services.EmailService;
 import com.nimbusds.jose.*;
@@ -54,14 +50,16 @@ public class AuthServiceImpl implements AuthService {
     InvalidatedRepository invalidatedRepository;
     RoleRepository roleRepository;
     CompanyRepository companyRepository;
-    UserMapper userMapper;
     EmailVerificationTokenRepository emailVerificationTokenRepository;
     PasswordResetTokenRepository passwordResetTokenRepository;
     EmailService emailService;
     UserInvitationRepository userInvitationRepository;
+    CompanySubscriptionService companySubscriptionService;
+    SubscriptionPlanRepository subscriptionPlanRepository;
 
     private static final String REFRESH_TOKEN_PREFIX = "refresh_token:";
     private static final String USER_REFRESH_TOKENS_PREFIX = "user_refresh_tokens:";
+    private static final String DEFAULT_PLAN = "FREE";
 
     @NonFinal
     @Value("${jwt.signer-key}")
@@ -117,6 +115,16 @@ public class AuthServiceImpl implements AuthService {
 
         EmailVerificationToken verificationToken = createAndSaveVerificationToken(user);
         emailService.sendEmailVerification(user, verificationToken);
+
+        SubscriptionPlan plan = subscriptionPlanRepository.findByCodeIgnoreCase(DEFAULT_PLAN)
+                .orElseThrow(()-> new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_EXISTED));
+
+        companySubscriptionService.create(CompanySubscriptionRequest.builder()
+                        .companyId(company.getId())
+                        .planId(plan.getId())
+                        .status(SubscriptionStatus.ACTIVE)
+                        .endDate(LocalDateTime.now().plusDays(30))
+                .build());
 
         CompanyRegisterResponse companyRegisterResponse = CompanyRegisterResponse.builder()
                 .id(company.getId())

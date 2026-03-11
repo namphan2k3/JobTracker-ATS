@@ -8,7 +8,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-import com.jobtracker.jobtracker_app.entities.User;
 import com.jobtracker.jobtracker_app.repositories.UserRepository;
 
 @Component
@@ -26,7 +25,6 @@ public class AuditorAwareImpl implements AuditorAware<String> {
             return Optional.empty();
         }
 
-        String id = authentication.getName();
-        return userRepository.findById(id).map(User::getEmail);
+        return Optional.of(authentication.getName());
     }
 }

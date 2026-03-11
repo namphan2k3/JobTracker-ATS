@@ -141,7 +141,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         Company company = securityUtils.getCurrentUser().getCompany();
         planLimitService.enforceUserLimit(company.getId());
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmailAndCompany_Id(request.getEmail(), company.getId())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 

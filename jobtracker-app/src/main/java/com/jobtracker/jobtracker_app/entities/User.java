@@ -15,7 +15,7 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = @UniqueConstraint(name = "uk_users_company_email", columnNames = {"company_id", "email"}))
 @Getter
 @Setter
 @AllArgsConstructor
