@@ -34,8 +34,11 @@ public class SkillController {
     }
 
     @GetMapping
-    public ApiResponse<List<SkillResponse>> getAll(Pageable pageable) {
-        Page<SkillResponse> skills = skillService.getAll(pageable);
+    public ApiResponse<List<SkillResponse>> getAll(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String category,
+            Pageable pageable) {
+        Page<SkillResponse> skills = skillService.getAll(name, category, pageable);
         return ApiResponse.<List<SkillResponse>>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.SKILL_LIST_SUCCESS))
                 .data(skills.getContent())

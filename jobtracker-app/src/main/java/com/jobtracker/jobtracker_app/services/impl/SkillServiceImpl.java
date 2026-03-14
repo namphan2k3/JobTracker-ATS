@@ -63,8 +63,8 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     @PreAuthorize("hasAuthority('SKILL_READ')")
-    public Page<SkillResponse> getAll(Pageable pageable) {
-        return skillRepository.findAllByDeletedAtIsNull(pageable)
+    public Page<SkillResponse> getAll(String name, String category, Pageable pageable) {
+        return skillRepository.searchByNameAndCategory(name, category, pageable)
                 .map(skillMapper::toSkillResponse);
     }
 

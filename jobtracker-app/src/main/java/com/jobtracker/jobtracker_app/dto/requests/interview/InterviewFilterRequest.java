@@ -15,11 +15,8 @@ import java.time.LocalDateTime;
 public class InterviewFilterRequest {
     String applicationId;
     String jobId;
-    /** User id của interviewer — lọc interview mà user này tham gia */
     String interviewerId;
-    /** scheduledDate >= from */
     LocalDateTime from;
-    /** scheduledDate <= to */
     LocalDateTime to;
     InterviewStatus status;
 }

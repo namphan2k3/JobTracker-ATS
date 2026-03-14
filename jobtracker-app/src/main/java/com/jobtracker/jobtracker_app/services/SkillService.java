@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 public interface SkillService {
     SkillResponse create(SkillRequest request);
     SkillResponse getById(String id);
-    Page<SkillResponse> getAll(Pageable pageable);
+    Page<SkillResponse> getAll(String name, String category, Pageable pageable);
     SkillResponse update(String id, SkillRequest request);
     void delete(String id);
 }
