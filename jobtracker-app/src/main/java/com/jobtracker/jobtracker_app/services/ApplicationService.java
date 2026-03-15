@@ -1,5 +1,6 @@
 package com.jobtracker.jobtracker_app.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jobtracker.jobtracker_app.dto.requests.application.*;
 import com.jobtracker.jobtracker_app.dto.responses.application.*;
 import org.springframework.data.domain.Page;
@@ -24,7 +25,7 @@ public interface ApplicationService {
 
     ApplicationResponse createApplication(ApplicationCreateRequest request);
 
-    UpdateApplicationStatusResponse updateStatus(String id, ApplicationUpdateStatusRequest request);
+    UpdateApplicationStatusResponse updateStatus(String id, ApplicationUpdateStatusRequest request) throws JsonProcessingException;
 
     ApplicationResponse updateApplication(String id, ApplicationUpdateRequest request);
 

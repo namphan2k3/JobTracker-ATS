@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface JobRepository extends JpaRepository<Job, String> {
@@ -93,4 +94,7 @@ public interface JobRepository extends JpaRepository<Job, String> {
             "AND j.deleted_at IS NULL AND MONTH(j.published_at) = MONTH(DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)) " +
             "AND YEAR(j.published_at) = YEAR(DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))", nativeQuery = true)
     long countPublishedLastMonth(@Param("companyId") String companyId);
+
+    @Query("SELECT j FROM Job j WHERE j.deadlineDate = :deadlineDate AND j.deletedAt IS NULL")
+    List<Job> findByDeadlineDate(@Param("deadlineDate") LocalDate deadlineDate);
 }

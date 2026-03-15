@@ -30,6 +30,11 @@ auth:
 scheduler:
   plan-limit:
     cron: "0 0 * * * ?"
+  notifications:
+    deadline-reminder-cron: "0 0 9 * * ?"
+    deadline-reminder-days: 3
+    interview-reminder-cron: "0 */5 * * * ?"
+    interview-reminder-minutes: 60
 
 springdoc:
   default-flat-param-object: true

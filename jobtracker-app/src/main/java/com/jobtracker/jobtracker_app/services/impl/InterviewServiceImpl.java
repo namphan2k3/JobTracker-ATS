@@ -1,5 +1,7 @@
 package com.jobtracker.jobtracker_app.services.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.jobtracker_app.dto.requests.interview.InterviewCreationRequest;
 import com.jobtracker.jobtracker_app.dto.requests.interview.InterviewFilterRequest;
 import com.jobtracker.jobtracker_app.dto.requests.interview.InterviewUpdateRequest;
@@ -12,6 +14,9 @@ import com.jobtracker.jobtracker_app.mappers.InterviewMapper;
 import com.jobtracker.jobtracker_app.repositories.*;
 import com.jobtracker.jobtracker_app.services.EmailService;
 import com.jobtracker.jobtracker_app.services.InterviewService;
+import com.jobtracker.jobtracker_app.services.NotificationService;
+import com.jobtracker.jobtracker_app.enums.NotificationType;
+import com.jobtracker.jobtracker_app.enums.NotificationPriority;
 import com.jobtracker.jobtracker_app.utils.SecurityUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -41,11 +46,13 @@ public class InterviewServiceImpl implements InterviewService {
     SecurityUtils securityUtils;
     InterviewInterviewerRepository interviewInterviewerRepository;
     EmailService emailService;
+    NotificationService notificationService;
+    ObjectMapper objectMapper;
 
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('INTERVIEW_CREATE')")
-    public InterviewResponse create(InterviewCreationRequest request, String applicationId) {
+    public InterviewResponse create(InterviewCreationRequest request, String applicationId) throws JsonProcessingException {
         Set<InterviewInterviewer> interviewInterviewersSet = new HashSet<>();
 
         User currentUser = securityUtils.getCurrentUser();
@@ -100,6 +107,26 @@ public class InterviewServiceImpl implements InterviewService {
 
         Interview saved = interviewRepository.save(interview);
 
+        User assignee = application.getAssignedTo();
+        if (assignee != null) {
+            String metadataJson = objectMapper.writeValueAsString(
+                    java.util.Map.of(
+                            "interviewId", saved.getId(),
+                            "applicationId", application.getId(),
+                            "jobId", application.getJob().getId()
+                    )
+            );
+            notificationService.sendNotification(
+                    assignee,
+                    application.getCompany(),
+                    application.getJob(),
+                    application,
+                    NotificationType.INTERVIEW_SCHEDULED,
+                    NotificationPriority.MEDIUM,
+                    metadataJson
+            );
+        }
+
         return interviewMapper.toInterviewResponse(saved);
     }
 
@@ -147,7 +174,7 @@ public class InterviewServiceImpl implements InterviewService {
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('INTERVIEW_UPDATE')")
-    public InterviewResponse update(String id, InterviewUpdateRequest request) {
+    public InterviewResponse update(String id, InterviewUpdateRequest request) throws JsonProcessingException {
 
         User currentUser = securityUtils.getCurrentUser();
 
@@ -243,6 +270,27 @@ public class InterviewServiceImpl implements InterviewService {
         } else if (scheduleChanged || durationChanged) {
             emailService.sendInterviewRescheduled(interview, request.getCustomMessage());
             interview.setStatus(InterviewStatus.RESCHEDULED);
+
+            Application application = interview.getApplication();
+            if (application != null && application.getAssignedTo() != null) {
+                User assignee = application.getAssignedTo();
+                String metadataJson = objectMapper.writeValueAsString(
+                        java.util.Map.of(
+                                "interviewId", interview.getId(),
+                                "applicationId", application.getId(),
+                                "jobId", application.getJob().getId()
+                        )
+                );
+                notificationService.sendNotification(
+                        assignee,
+                        application.getCompany(),
+                        application.getJob(),
+                        application,
+                        NotificationType.INTERVIEW_SCHEDULED,
+                        NotificationPriority.MEDIUM,
+                        metadataJson
+                );
+            }
         }
 
         Interview saved = interviewRepository.save(interview);

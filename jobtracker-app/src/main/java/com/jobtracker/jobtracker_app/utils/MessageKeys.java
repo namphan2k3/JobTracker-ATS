@@ -192,6 +192,19 @@ public class MessageKeys {
     public static final String USER_SKILL_LIST_SUCCESS = "user_skill.list_success";
     public static final String USER_SKILL_DETAIL_SUCCESS = "user_skill.detail_success";
 
+    public static final String NOTIFICATION_GENERIC_TITLE = "notification.generic.title";
+    public static final String NOTIFICATION_GENERIC_MESSAGE = "notification.generic.message";
+    public static final String NOTIFICATION_APPLICATION_RECEIVED_TITLE = "notification.application_received.title";
+    public static final String NOTIFICATION_APPLICATION_RECEIVED_MESSAGE = "notification.application_received.message";
+    public static final String NOTIFICATION_STATUS_UPDATE_TITLE = "notification.status_update.title";
+    public static final String NOTIFICATION_STATUS_UPDATE_MESSAGE = "notification.status_update.message";
+    public static final String NOTIFICATION_INTERVIEW_SCHEDULED_TITLE = "notification.interview_scheduled.title";
+    public static final String NOTIFICATION_INTERVIEW_SCHEDULED_MESSAGE = "notification.interview_scheduled.message";
+    public static final String NOTIFICATION_INTERVIEW_REMINDER_TITLE = "notification.interview_reminder.title";
+    public static final String NOTIFICATION_INTERVIEW_REMINDER_MESSAGE = "notification.interview_reminder.message";
+    public static final String NOTIFICATION_DEADLINE_REMINDER_TITLE = "notification.deadline_reminder.title";
+    public static final String NOTIFICATION_DEADLINE_REMINDER_MESSAGE = "notification.deadline_reminder.message";
+
     // INTERVIEW
     public static final String INTERVIEW_NOT_EXISTED = "interview.not_existed";
     public static final String INTERVIEW_CREATE_SUCCESS = "interview.create_success";

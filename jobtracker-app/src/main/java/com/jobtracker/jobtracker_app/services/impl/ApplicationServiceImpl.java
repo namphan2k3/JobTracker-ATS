@@ -2,6 +2,7 @@ package com.jobtracker.jobtracker_app.services.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.jobtracker_app.dto.requests.job.JobSkillWithName;
 import com.jobtracker.jobtracker_app.dto.requests.application.*;
@@ -17,6 +18,9 @@ import com.jobtracker.jobtracker_app.services.ApplicationService;
 import com.jobtracker.jobtracker_app.services.CVScoringService;
 import com.jobtracker.jobtracker_app.services.PlanLimitService;
 import com.jobtracker.jobtracker_app.services.EmailService;
+import com.jobtracker.jobtracker_app.services.NotificationService;
+import com.jobtracker.jobtracker_app.enums.NotificationType;
+import com.jobtracker.jobtracker_app.enums.NotificationPriority;
 import com.jobtracker.jobtracker_app.utils.SecurityUtils;
 import com.jobtracker.jobtracker_app.validator.file.impl.PdfFileValidator;
 import lombok.AccessLevel;
@@ -59,6 +63,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     ApplicationStatusHistoryMapper applicationStatusHistoryMapper;
     EmailService emailService;
     PlanLimitService planLimitService;
+    NotificationService notificationService;
 
     @Override
     @Transactional
@@ -115,7 +120,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         // To JSON
         String matchedSkills = objectMapper.writeValueAsString(matchedSkillsJson);
 
-        User assignTo = userRepository
+        User assignee = userRepository
                 .findByIdAndCompany_IdAndDeletedAtIsNull(job.getCreatedBy(), job.getCompany().getId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
@@ -133,7 +138,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .extractedText(extractText)
                 .matchScore(scoreResult.getMatchScore())
                 .matchedSkills(matchedSkills)
-                .assignedTo(assignTo)
+                .assignedTo(assignee)
                 .build();
 
         String publicId = (String) result.get("public_id");
@@ -147,6 +152,26 @@ public class ApplicationServiceImpl implements ApplicationService {
             jobRepository.save(job);
 
             emailService.sendApplicationConfirmation(application);
+
+            if (assignee != null) {
+                String metadataJson = objectMapper.writeValueAsString(
+                        Map.of(
+                                "candidateName", application.getCandidateName(),
+                                "jobTitle", job.getTitle(),
+                                "applicationId", saved.getId(),
+                                "jobId", job.getId()
+                        )
+                );
+                notificationService.sendNotification(
+                        assignee,
+                        job.getCompany(),
+                        job,
+                        saved,
+                        NotificationType.APPLICATION_RECEIVED,
+                        NotificationPriority.MEDIUM,
+                        metadataJson
+                );
+            }
         } catch (Exception e) {
             // rollback file nếu DB fail
             cloudinary.uploader().destroy(publicId,
@@ -331,7 +356,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional
     @PreAuthorize("hasAuthority('APPLICATION_UPDATE')")
     public UpdateApplicationStatusResponse updateStatus(String id,
-                                                        ApplicationUpdateStatusRequest request) {
+                                                        ApplicationUpdateStatusRequest request) throws JsonProcessingException {
 
         User currentUser = securityUtils.getCurrentUser();
 
@@ -365,6 +390,27 @@ public class ApplicationServiceImpl implements ApplicationService {
             if (newStatus.getStatusType().equals(StatusType.HIRED)) {
                 emailService.sendCandidateHired(application, request.getCustomMessage());
             }
+        }
+
+        User assignee = application.getAssignedTo();
+        if (assignee != null) {
+            String metadataJson = objectMapper.writeValueAsString(
+                    Map.of(
+                            "applicationId", application.getId(),
+                            "jobId", application.getJob().getId(),
+                            "fromStatus", currentStatus.getDisplayName(),
+                            "toStatus", newStatus.getDisplayName()
+                    )
+            );
+            notificationService.sendNotification(
+                    assignee,
+                    application.getCompany(),
+                    application.getJob(),
+                    application,
+                    NotificationType.STATUS_UPDATE,
+                    NotificationPriority.MEDIUM,
+                    metadataJson
+            );
         }
 
         ApplicationStatusHistory history = ApplicationStatusHistory.builder()

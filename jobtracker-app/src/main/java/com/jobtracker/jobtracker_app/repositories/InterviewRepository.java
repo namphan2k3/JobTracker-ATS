@@ -64,6 +64,14 @@ public interface InterviewRepository extends JpaRepository<Interview, String> {
             @Param("status") InterviewStatus status,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate);
+
+    @Query("SELECT i FROM Interview i " +
+            "WHERE i.status = :status " +
+            "AND i.deletedAt IS NULL " +
+            "AND i.scheduledDate BETWEEN :fromDate AND :toDate")
+    List<Interview> findRemindersWindow(@Param("status") InterviewStatus status,
+                                        @Param("fromDate") LocalDateTime fromDate,
+                                        @Param("toDate") LocalDateTime toDate);
 }
 
 
