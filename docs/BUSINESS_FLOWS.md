@@ -197,6 +197,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
 - **Application chính** (`applications`):
   - Link tới `job`, `company`, `status` (FK tới `application_statuses`).
   - Các trường quan trọng: `source`, `applied_date`, `match_score`, `matched_skills (JSON)`, `assigned_to`, `allow_additional_uploads`, v.v.
+  - `assigned_to`: user (HR/Recruiter) **phụ trách chính** hồ sơ; mặc định khi candidate apply, hệ thống sẽ set `assigned_to = job.created_by` (owner của job). Lead có thể **reassign** hoặc **bulk assign** khi cần.
 
 - **History** (`application_status_history`):
   - Ghi lại mọi lần đổi status:
@@ -222,6 +223,7 @@ Tài liệu này tổng hợp **luồng nghiệp vụ chính** và **quy tắc t
   6. Parse text từ PDF, load `job_skills`, gọi `CVScoringService.score()` → tính `matchScore` + `matched / missing skills`.
   7. Tạo `Application`:
      - `status` = default status (thường là kiểu `APPLIED`), `applicationToken` random UUID.
+     - `assignedTo` = `job.createdBy` (HR/Recruiter tạo job) để mỗi application ngay từ đầu đã có người phụ trách mặc định.
      - `appliedDate = LocalDate.now()`.
      - `matchScore`, `matchedSkills (JSON)`, `resumeFilePath`, `candidate info`, ...
   8. Save `Application` (nếu fail → xóa file Cloudinary).

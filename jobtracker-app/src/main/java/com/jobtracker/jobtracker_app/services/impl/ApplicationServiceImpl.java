@@ -115,6 +115,10 @@ public class ApplicationServiceImpl implements ApplicationService {
         // To JSON
         String matchedSkills = objectMapper.writeValueAsString(matchedSkillsJson);
 
+        User assignTo = userRepository
+                .findByIdAndCompany_IdAndDeletedAtIsNull(job.getCreatedBy(), job.getCompany().getId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
         Application application = Application.builder()
                 .job(job)
                 .company(job.getCompany())
@@ -129,6 +133,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .extractedText(extractText)
                 .matchScore(scoreResult.getMatchScore())
                 .matchedSkills(matchedSkills)
+                .assignedTo(assignTo)
                 .build();
 
         String publicId = (String) result.get("public_id");
@@ -296,6 +301,10 @@ public class ApplicationServiceImpl implements ApplicationService {
         ApplicationStatus status = applicationStatusRepository.findById(request.getStatusId())
                 .orElseThrow(() -> new AppException(ErrorCode.APPLICATION_STATUS_NOT_EXISTED));
 
+        User assignTo = userRepository
+                .findByIdAndCompany_IdAndDeletedAtIsNull(job.getCreatedBy(), job.getCompany().getId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
         Application application = Application.builder()
                 .job(job)
                 .company(job.getCompany())
@@ -307,6 +316,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .appliedDate(request.getAppliedDate())
                 .coverLetter(request.getCoverLetter())
                 .notes(request.getNotes())
+                .assignedTo(assignTo)
                 .build();
 
         application = applicationRepository.save(application);
