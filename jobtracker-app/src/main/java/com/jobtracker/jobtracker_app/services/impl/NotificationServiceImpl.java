@@ -134,7 +134,6 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    @PreAuthorize("hasAuthority('NOTIFICATION_READ')")
     public void sendNotification(User user,
                                  Company company,
                                  Job job,
