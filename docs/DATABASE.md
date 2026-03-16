@@ -811,13 +811,14 @@ CREATE TABLE interview_interviewers (
 
 ```sql
 CREATE TABLE attachments (
-    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'UUID file đính kèm',
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'UUID file đính kèm (primary key nội bộ)',
     application_id VARCHAR(36) NULL COMMENT 'UUID ứng tuyển',
     company_id VARCHAR(36) NOT NULL COMMENT 'UUID công ty (Multi-tenant)',
     user_id VARCHAR(36) NULL COMMENT 'UUID người dùng upload (NULL nếu candidate upload qua public API)',
     filename VARCHAR(255) NOT NULL COMMENT 'Tên file',
     original_filename VARCHAR(255) NOT NULL COMMENT 'Tên file gốc',
-    file_path VARCHAR(500) NOT NULL COMMENT 'Đường dẫn file trên Dropbox',
+    file_path VARCHAR(500) NOT NULL COMMENT 'Đường dẫn file (URL tải file)',
+    public_id VARCHAR(255) COMMENT 'Cloudinary public_id (khóa để download/destroy file an toàn)',
     file_size BIGINT NOT NULL COMMENT 'Kích thước file (bytes)',
     file_type VARCHAR(100) NOT NULL COMMENT 'Loại file',
     attachment_type ENUM('RESUME', 'COVER_LETTER', 'CERTIFICATE', 'PORTFOLIO', 'OTHER') NOT NULL COMMENT 'Loại file đính kèm',

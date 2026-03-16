@@ -1451,6 +1451,7 @@ description: "AWS Certification"
   "message": "Attachment uploaded successfully",
   "data": {
     "id": "a1b2c3d4-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
+    "publicId": "jobtracker_ats/applications/app_1/cv/file_public_id",
     "applicationId": "app1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6",
     "filename": "aws_certificate.pdf",
     "attachmentType": "CERTIFICATE",
@@ -4693,6 +4694,7 @@ Lấy danh sách attachments của application.
   "data": [
     {
       "id": "5f47e8b3-338f-4f1a-8e65-92dbd1dcb2f2",
+      "publicId": "jobtracker_ats/applications/app_1/cv/file_public_id",
       "filename": "john_doe_resume.pdf",
       "attachmentType": "RESUME",
       "fileSize": 512000,
@@ -4700,6 +4702,7 @@ Lấy danh sách attachments của application.
     },
     {
       "id": "6g58f9c4-449g-5g2b-9f76-a3ece2edc3g3",
+      "publicId": "jobtracker_ats/applications/app_1/cv/cert_public_id",
       "filename": "john_doe_certificate.pdf",
       "attachmentType": "CERTIFICATE",
       "fileSize": 256000,
