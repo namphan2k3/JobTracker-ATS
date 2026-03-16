@@ -161,7 +161,7 @@ public class AttachmentServiceImpl implements AttachmentService {
         }
 
         String signedUrl = cloudinary.url()
-                .resourceType("raw")
+                .resourceType("image")
                 .type("upload")
                 .signed(true)
                 .transformation(new Transformation().flags("attachment"))
@@ -200,8 +200,7 @@ public class AttachmentServiceImpl implements AttachmentService {
 
         Map result = cloudinary.uploader().destroy(attachment.getPublicId(),
                 ObjectUtils.asMap(
-                        "resource_type", "raw",
-                        "type", "authenticated"));
+                        "resource_type", "image"));
 
         if ("ok".equals(result.get("result"))) {
             attachmentRepository.deleteById(id);

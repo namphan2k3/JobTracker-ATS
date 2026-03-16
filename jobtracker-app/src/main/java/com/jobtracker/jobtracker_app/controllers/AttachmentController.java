@@ -4,7 +4,6 @@ import com.jobtracker.jobtracker_app.dto.requests.attachment.AttachmentUploadReq
 import com.jobtracker.jobtracker_app.dto.responses.common.ApiResponse;
 import com.jobtracker.jobtracker_app.dto.responses.attachment.AttachmentCreationResponse;
 import com.jobtracker.jobtracker_app.dto.responses.attachment.AttachmentResponse;
-import com.jobtracker.jobtracker_app.dto.responses.common.PaginationInfo;
 import com.jobtracker.jobtracker_app.services.AttachmentService;
 import com.jobtracker.jobtracker_app.utils.LocalizationUtils;
 import com.jobtracker.jobtracker_app.utils.MessageKeys;
@@ -12,9 +11,6 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,15 +44,13 @@ public class AttachmentController {
     }
 
 
-    @GetMapping("/attachments/{id:.+}/download")
-    public ResponseEntity<Void> downloadAttachment(@PathVariable String id) {
+    @GetMapping("/attachments/{id}/download-url")
+    public ResponseEntity<String> getDownloadUrl(@PathVariable String id) {
         URI downloadUri = attachmentService.downloadAttachment(id);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(downloadUri)
-                .build();
+        return ResponseEntity.ok(downloadUri.toString());
     }
 
-    @DeleteMapping("/attachments/{id:.+}")
+    @DeleteMapping("/attachments/{id}")
     public ApiResponse<Void> delete(@PathVariable String id) throws IOException {
         attachmentService.delete(id);
         return ApiResponse.<Void>builder()
