@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AttachmentCreationResponse {
     String id;
+    String publicId;
     String applicationId;
     String companyId;
     String userId;

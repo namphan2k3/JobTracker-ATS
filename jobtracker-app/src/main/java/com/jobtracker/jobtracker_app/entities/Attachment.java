@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Attachment extends FullAuditEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     String id;
 
     @ManyToOne
@@ -40,6 +41,9 @@ public class Attachment extends FullAuditEntity {
 
     @Column(name = "file_path", nullable = false, length = 500)
     String filePath;
+
+    @Column(name = "public_id", length = 255)
+    String publicId;
 
     @Column(name = "file_size", nullable = false)
     Long fileSize;

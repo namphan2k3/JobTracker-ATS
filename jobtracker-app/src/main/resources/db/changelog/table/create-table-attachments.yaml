@@ -9,11 +9,11 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: varchar(36)
+                  type: varchar(255)
                   constraints:
                     primaryKey: true
                     nullable: false
-                  remarks: "UUID file đính kèm"
+                  remarks: "Primary key của attachment (UUID trong ứng dụng)"
               - column:
                   name: application_id
                   type: varchar(36)
@@ -46,6 +46,10 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                   remarks: "Đường dẫn file"
+              - column:
+                  name: public_id
+                  type: varchar(255)
+                  remarks: "Cloudinary public_id (khóa để destroy/download file)"
               - column:
                   name: file_size
                   type: bigint

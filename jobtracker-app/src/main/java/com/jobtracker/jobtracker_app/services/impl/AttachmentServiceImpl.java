@@ -114,14 +114,14 @@ public class AttachmentServiceImpl implements AttachmentService {
         }
 
         Attachment attachment = Attachment.builder()
-                .id(publicId)
                 .application(application)
                 .company(user.getCompany())
                 .user(user)
                 .filename((String) result.get("display_name"))
                 .originalFilename((String) result.get("original_filename"))
                 .filePath((String) result.get("secure_url"))
-                .fileSize((Long) result.get("bytes"))
+                .publicId(publicId)
+                .fileSize(((Number) result.get("bytes")).longValue())
                 .fileType(request.getFile().getContentType())
                 .attachmentType(request.getAttachmentType())
                 .description(request.getDescription())
@@ -165,7 +165,7 @@ public class AttachmentServiceImpl implements AttachmentService {
                 .type("upload")
                 .signed(true)
                 .transformation(new Transformation().flags("attachment"))
-                .generate(id);
+                .generate(attachment.getPublicId());
 
 
         return URI.create(signedUrl);
@@ -174,7 +174,7 @@ public class AttachmentServiceImpl implements AttachmentService {
 
     @Override
     @PreAuthorize("hasAuthority('ATTACHMENT_READ')")
-    public Page<AttachmentResponse> getApplicationAttachments(String applicationId, Pageable pageable) {
+    public List<AttachmentResponse> getApplicationAttachments(String applicationId) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
 
         User user = userRepository.findById(userId)
@@ -186,19 +186,19 @@ public class AttachmentServiceImpl implements AttachmentService {
             throw new AppException(ErrorCode.APPLICATION_NOT_EXISTED);
         }
 
-        return attachmentRepository.findByApplication_Id(pageable,applicationId)
-                .map(attachmentMapper::toAttachmentResponse);
+        return attachmentRepository
+                .findByApplication_IdAndCompany_IdAndDeletedAtIsNull(applicationId, user.getCompany().getId())
+                .stream().map(attachmentMapper::toAttachmentResponse).toList();
     }
 
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('ATTACHMENT_DELETE')")
     public void delete(String id) throws IOException {
-        if(!attachmentRepository.existsById(id)){
-            throw new AppException(ErrorCode.ATTACHMENT_NOT_EXISTED);
-        }
+        Attachment attachment = attachmentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.ATTACHMENT_NOT_EXISTED));
 
-        Map result = cloudinary.uploader().destroy(id,
+        Map result = cloudinary.uploader().destroy(attachment.getPublicId(),
                 ObjectUtils.asMap(
                         "resource_type", "raw",
                         "type", "authenticated"));

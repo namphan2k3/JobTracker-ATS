@@ -40,24 +40,15 @@ public class AttachmentController {
     }
 
     @GetMapping("/applications/{applicationId}/attachments")
-    public ApiResponse<List<AttachmentResponse>> getApplicationAttachments(
-            @PathVariable String applicationId,
-            Pageable pageable) {
-        Page<AttachmentResponse> attachments = attachmentService.getApplicationAttachments(applicationId, pageable);
+    public ApiResponse<List<AttachmentResponse>> getApplicationAttachments(@PathVariable String applicationId) {
         return ApiResponse.<List<AttachmentResponse>>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.ATTACHMENT_LIST_SUCCESS))
-                .data(attachments.getContent())
-                .paginationInfo(PaginationInfo.builder()
-                        .page(attachments.getNumber())
-                        .size(attachments.getSize())
-                        .totalElements(attachments.getTotalElements())
-                        .totalPages(attachments.getTotalPages())
-                        .build())
+                .data(attachmentService.getApplicationAttachments(applicationId))
                 .build();
     }
 
 
-    @GetMapping("/{id}/download")
+    @GetMapping("/attachments/{id:.+}/download")
     public ResponseEntity<Void> downloadAttachment(@PathVariable String id) {
         URI downloadUri = attachmentService.downloadAttachment(id);
         return ResponseEntity.status(HttpStatus.FOUND)
@@ -65,7 +56,7 @@ public class AttachmentController {
                 .build();
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/attachments/{id:.+}")
     public ApiResponse<Void> delete(@PathVariable String id) throws IOException {
         attachmentService.delete(id);
         return ApiResponse.<Void>builder()

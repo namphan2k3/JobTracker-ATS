@@ -8,8 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface AttachmentRepository extends JpaRepository<Attachment, String> {
-    Page<Attachment> findByApplication_Id(Pageable pageable, String applicationId);
+    List<Attachment> findByApplication_IdAndCompany_IdAndDeletedAtIsNull(String applicationId, String companyId);
 }
 
 

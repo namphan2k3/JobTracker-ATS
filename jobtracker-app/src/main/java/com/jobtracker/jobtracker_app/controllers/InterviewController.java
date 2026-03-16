@@ -1,5 +1,6 @@
 package com.jobtracker.jobtracker_app.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jobtracker.jobtracker_app.dto.requests.interview.InterviewCreationRequest;
 import com.jobtracker.jobtracker_app.dto.requests.interview.InterviewFilterRequest;
 import com.jobtracker.jobtracker_app.dto.requests.interview.InterviewUpdateRequest;
@@ -55,7 +56,7 @@ public class InterviewController {
     @PostMapping("/applications/{applicationId}/interviews")
     public ApiResponse<InterviewResponse> create(
             @PathVariable String applicationId,
-            @RequestBody @Valid InterviewCreationRequest request) {
+            @RequestBody @Valid InterviewCreationRequest request) throws JsonProcessingException {
         return ApiResponse.<InterviewResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.INTERVIEW_CREATE_SUCCESS))
                 .data(interviewService.create(request, applicationId))
@@ -73,7 +74,7 @@ public class InterviewController {
     @PutMapping("/interviews/{id}")
     public ApiResponse<InterviewResponse> update(
             @PathVariable String id,
-            @RequestBody @Valid InterviewUpdateRequest request) {
+            @RequestBody @Valid InterviewUpdateRequest request) throws JsonProcessingException {
         return ApiResponse.<InterviewResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.INTERVIEW_UPDATE_SUCCESS))
                 .data(interviewService.update(id, request))

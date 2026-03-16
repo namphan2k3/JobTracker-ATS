@@ -1,5 +1,6 @@
 package com.jobtracker.jobtracker_app.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jobtracker.jobtracker_app.dto.requests.application.*;
 import com.jobtracker.jobtracker_app.dto.responses.application.*;
 import com.jobtracker.jobtracker_app.dto.responses.common.ApiResponse;
@@ -91,7 +92,7 @@ public class ApplicationController {
     @PatchMapping("/applications/{id}/status")
     public ApiResponse<UpdateApplicationStatusResponse> updateStatus(
             @PathVariable String id,
-            @RequestBody @Valid ApplicationUpdateStatusRequest request) {
+            @RequestBody @Valid ApplicationUpdateStatusRequest request) throws JsonProcessingException {
         return ApiResponse.<UpdateApplicationStatusResponse>builder()
                 .message(localizationUtils.getLocalizedMessage(MessageKeys.APPLICATION_STATUS_UPDATE_SUCCESS))
                 .data(applicationService.updateStatus(id, request))

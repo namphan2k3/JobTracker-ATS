@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 
 public interface AttachmentService {
     AttachmentCreationResponse uploadAttachment(String applicationId, AttachmentUploadRequest request)
@@ -15,7 +16,7 @@ public interface AttachmentService {
 
     URI downloadAttachment(String id);
 
-    Page<AttachmentResponse> getApplicationAttachments(String applicationId, Pageable pageable);
+    List<AttachmentResponse> getApplicationAttachments(String applicationId);
 
     void delete(String id) throws IOException;
 }
