@@ -1,17 +1,17 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:mysql://${MYSQLHOST}:${MYSQLPORT:3306}/${MYSQLDATABASE}?useSSL=true&requireSSL=true&serverTimezone=Asia/Ho_Chi_Minh}
+    username: ${DB_USERNAME:${MYSQLUSER}}
+    password: ${DB_PASSWORD:${MYSQLPASSWORD}}
 
   jpa:
     show-sql: false
 
   redis:
-    host: ${REDIS_HOST}
-    port: ${REDIS_PORT}
-    password: ${REDIS_PASSWORD:}
+    host: ${REDIS_HOST:${REDISHOST}}
+    port: ${REDIS_PORT:${REDISPORT:6379}}
+    password: ${REDIS_PASSWORD:${REDISPASSWORD:}}
 
 jwt:
   signer-key: ${JWT_SIGNER_KEY}
