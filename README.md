@@ -15,7 +15,7 @@ JobTracker ATS is an Applicant Tracking System designed for small and medium ent
 
 ### Architecture
 
-- **Pattern**: Monolithic Architecture with modular design, Multi-tenant
+- **Pattern**: Monolithic Architecture, Multi-tenant
 - **Backend**: Spring Boot 3 + Java 21
 - **Database**: MySQL 8.0 with Liquibase migrations
 - **Authentication**: JWT (access + refresh tokens)
