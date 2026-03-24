@@ -37,7 +37,6 @@ public class CompanySubscriptionServiceImpl implements CompanySubscriptionServic
 
     @Override
     @Transactional
-    @PreAuthorize("hasAuthority('SUBSCRIPTION_CREATE')")
     public CompanySubscriptionResponse create(CompanySubscriptionRequest request) {
         Company company = companyRepository.findById(request.getCompanyId())
                 .orElseThrow(() -> new AppException(ErrorCode.COMPANY_NOT_EXISTED));

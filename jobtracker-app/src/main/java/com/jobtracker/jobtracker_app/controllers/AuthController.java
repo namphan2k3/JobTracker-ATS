@@ -61,7 +61,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(true)
                 .path("/api/v1/auth")
-                .sameSite("None")
+                .sameSite("Strict")
                 .maxAge(Duration.ofSeconds(authResult.getTokenInfo().getRefreshMaxAge()))
                 .build();
 
@@ -91,7 +91,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(true)
                 .path("/api/v1/auth")
-                .sameSite("None")
+                .sameSite("Strict")
                 .maxAge(Duration.ofSeconds(authResult.getTokenInfo().getRefreshMaxAge()))
                 .build();
 
@@ -119,7 +119,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(true)
                 .path("/api/v1/auth")
-                .sameSite("None")
+                .sameSite("Strict")
                 .maxAge(0)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, clearCookie.toString());

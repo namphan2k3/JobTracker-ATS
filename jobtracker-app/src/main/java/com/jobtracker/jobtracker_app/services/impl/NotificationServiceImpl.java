@@ -25,6 +25,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -58,6 +60,7 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setCompany(company);
         notification.setIsRead(false);
         notification.setIsSent(true);
+        notification.setSentAt(LocalDateTime.now());
         
         if (request.getJobId() != null) {
             Job job = jobRepository
