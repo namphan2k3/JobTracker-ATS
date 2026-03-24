@@ -56,6 +56,8 @@ public class NotificationServiceImpl implements NotificationService {
 
         notification.setUser(user);
         notification.setCompany(company);
+        notification.setIsRead(false);
+        notification.setIsSent(true);
         
         if (request.getJobId() != null) {
             Job job = jobRepository
