@@ -27,6 +27,10 @@ auth:
   password-reset-token-expiry-hours: 1
   invite-token-expiry-days: 7
 
+file:
+  max-pdf-size: ${FILE_MAX_PDF_SIZE:5242880}
+  max-image-size: ${FILE_MAX_IMAGE_SIZE:5242880}
+
 scheduler:
   plan-limit:
     cron: "0 0 * * * ?"
