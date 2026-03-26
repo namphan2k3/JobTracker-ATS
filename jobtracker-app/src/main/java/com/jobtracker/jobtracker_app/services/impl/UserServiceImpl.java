@@ -82,7 +82,7 @@ public class UserServiceImpl implements UserService {
         String folderPath = "jobtracker_ats/user/" + user.getId() + "/avatars";
 
         Map<?, ?> result = cloudinary.uploader().upload(
-                file.getInputStream(),
+                file.getBytes(),
                 ObjectUtils.asMap(
                         "folder", folderPath,
                         "resource_type", "image"
