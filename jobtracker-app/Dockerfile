@@ -13,4 +13,4 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar /app/app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["sh","-c","java -XX:MaxRAMPercentage=75.0 -Dserver.port=$PORT -jar /app/app.jar"]
+ENTRYPOINT ["sh","-c","java -XX:MaxRAMPercentage=60.0 -XX:MaxMetaspaceSize=128m -Xss512k -Dserver.port=$PORT -jar /app/app.jar"]
