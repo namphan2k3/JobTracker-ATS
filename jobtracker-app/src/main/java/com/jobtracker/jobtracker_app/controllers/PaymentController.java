@@ -28,9 +28,9 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PaymentController {
-    @Value("${vnpay.return-url}")
+    @Value("${app.base-url}")
     @NonFinal
-    String vnp_ReturnUrl;
+    String baseUrl;
 
     PaymentService paymentService;
     LocalizationUtils localizationUtils;
@@ -49,9 +49,9 @@ public class PaymentController {
         boolean success = paymentService.paymentReturn(request);
 
         if (success) {
-            response.sendRedirect(vnp_ReturnUrl + "?status=success");
+            response.sendRedirect(baseUrl + "/payments/return?status=success");
         } else {
-            response.sendRedirect(vnp_ReturnUrl + "?status=failed");
+            response.sendRedirect(baseUrl + "/payments/return?status=failed");
         }
     }
 

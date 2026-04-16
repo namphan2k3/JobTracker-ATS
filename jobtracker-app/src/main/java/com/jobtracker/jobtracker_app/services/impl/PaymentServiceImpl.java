@@ -9,7 +9,9 @@ import com.jobtracker.jobtracker_app.dto.responses.payment.PaymentResponse;
 import com.jobtracker.jobtracker_app.entities.Company;
 import com.jobtracker.jobtracker_app.entities.CompanySubscription;
 import com.jobtracker.jobtracker_app.entities.Payment;
+import com.jobtracker.jobtracker_app.entities.User;
 import com.jobtracker.jobtracker_app.enums.PaymentStatus;
+import com.jobtracker.jobtracker_app.enums.SubscriptionStatus;
 import com.jobtracker.jobtracker_app.exceptions.AppException;
 import com.jobtracker.jobtracker_app.exceptions.ErrorCode;
 import com.jobtracker.jobtracker_app.mappers.PaymentMapper;
@@ -110,7 +112,7 @@ public class PaymentServiceImpl implements PaymentService {
         vnp_Params.put("vnp_ReturnUrl", vnPayConfig.vnp_ReturnUrl);
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
 
-        Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
+        Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
         String vnp_CreateDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
@@ -191,9 +193,25 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setMetadata(mapper.writeValueAsString(fields));
 
             if ("00".equals(request.getParameter("vnp_ResponseCode"))) {
-
                 payment.setStatus(PaymentStatus.SUCCESS);
                 payment.setPaidAt(LocalDateTime.now());
+
+                List<CompanySubscription> activeSubscriptions = companySubscriptionRepository
+                        .findByCompany_IdAndStatus(payment.getCompany().getId(), SubscriptionStatus.ACTIVE);
+                for (CompanySubscription active : activeSubscriptions) {
+                    active.setStatus(SubscriptionStatus.EXPIRED);
+                    active.setEndDate(LocalDateTime.now());
+                }
+
+                CompanySubscription subscription = payment.getCompanySubscription();
+                subscription.setStatus(SubscriptionStatus.ACTIVE);
+                subscription.setStartDate(LocalDateTime.now());
+                subscription.setEndDate(LocalDateTime.now().plusDays(
+                        subscription.getPlan().getDurationDays()));
+
+                activeSubscriptions.add(subscription);
+                companySubscriptionRepository.saveAll(activeSubscriptions);
+
                 return true;
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
