@@ -13,6 +13,6 @@ import lombok.experimental.FieldDefaults;
 public class EmailTemplateSendTestRequest {
 
     /** Email to send test to. If null, use current user's email. */
-    @Email
+    @Email(message = "{email_template.to_email.invalid}")
     String toEmail;
 }

@@ -17,15 +17,15 @@ import java.util.List;
 public class EmailTemplateCreationRequest {
 
     @NotBlank(message = "{email_template.code.not_blank}")
-    @Size(max = 100)
+    @Size(max = 100, message = "{email_template.code.size}")
     String code;
 
     @NotBlank(message = "{email_template.name.not_blank}")
-    @Size(max = 255)
+    @Size(max = 255, message = "{email_template.name.size}")
     String name;
 
     @NotBlank(message = "{email_template.subject.not_blank}")
-    @Size(max = 500)
+    @Size(max = 500, message = "{email_template.subject.size}")
     String subject;
 
     @NotBlank(message = "{email_template.html_content.not_blank}")
@@ -33,9 +33,9 @@ public class EmailTemplateCreationRequest {
 
     List<String> variables;
 
-    @Size(max = 255)
+    @Size(max = 255, message = "{email_template.from_name.size}")
     String fromName;
 
-    @NotNull
+    @NotNull(message = "{email_template.is_active.not_null}")
     Boolean isActive = true;
 }

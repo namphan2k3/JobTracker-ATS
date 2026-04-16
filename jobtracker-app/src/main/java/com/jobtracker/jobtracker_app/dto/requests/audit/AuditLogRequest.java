@@ -22,8 +22,8 @@ public class AuditLogRequest {
     @Size(max = 36, message = "{audit_log.entity_id.size}")
     String entityId;
 
-    @NotBlank(message = "audit_log.action.not_blank")
-    @Size(max = 50, message = "audit_log.action.size")
+    @NotBlank(message = "{audit_log.action.not_blank}")
+    @Size(max = 50, message = "{audit_log.action.size}")
     String action;
 
     String oldValues;

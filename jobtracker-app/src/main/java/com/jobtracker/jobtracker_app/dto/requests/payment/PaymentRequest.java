@@ -16,14 +16,14 @@ import java.math.BigDecimal;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class PaymentRequest {
 
-    @NotBlank
+    @NotBlank(message = "{payment.company_id.not_blank}")
     String companyId;
 
-    @NotBlank
+    @NotBlank(message = "{payment.subscription_id.not_blank}")
     String companySubscriptionId;
 
-    @NotNull
-    @Min(0)
+    @NotNull(message = "{payment.amount.not_null}")
+    @Min(value = 0, message = "{payment.amount.min}")
     BigDecimal amount;
 
     String currency;

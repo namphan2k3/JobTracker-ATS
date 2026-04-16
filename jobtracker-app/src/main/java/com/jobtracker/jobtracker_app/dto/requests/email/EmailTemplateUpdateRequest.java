@@ -14,14 +14,14 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmailTemplateUpdateRequest {
 
-    @Size(max = 500)
+    @Size(max = 500, message = "{email_template.subject.size}")
     String subject;
 
     String htmlContent;
 
     List<String> variables;
 
-    @Size(max = 255)
+    @Size(max = 255, message = "{email_template.from_name.size}")
     String fromName;
 
     Boolean isActive;

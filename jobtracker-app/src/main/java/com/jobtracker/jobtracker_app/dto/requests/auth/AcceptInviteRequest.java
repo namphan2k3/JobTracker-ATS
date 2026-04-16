@@ -11,9 +11,9 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AcceptInviteRequest {
-    @NotBlank
+    @NotBlank(message = "{auth.token.not_blank}")
     String token;
 
-    @NotBlank
+    @NotBlank(message = "{user.password.not_blank}")
     String password;
 }

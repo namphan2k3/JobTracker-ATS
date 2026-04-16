@@ -38,7 +38,7 @@ public class NotificationRequest {
     @Size(max = 255, message = "{notification.title.size}")
     String title;
 
-    @NotBlank(message = "notification.message.not_blank")
+    @NotBlank(message = "{notification.message.not_blank}")
     String message;
 
     LocalDateTime scheduledAt;

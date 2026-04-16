@@ -38,8 +38,8 @@ public class AttachmentRequest {
     @Size(max = 255, message = "{attachment.original_filename.size}")
     String originalFilename;
 
-    @NotBlank(message = "attachment.file_path.not_blank")
-    @Size(max = 500, message = "attachment.file_path.size")
+    @NotBlank(message = "{attachment.file_path.not_blank}")
+    @Size(max = 500, message = "{attachment.file_path.size}")
     String filePath;
 
     @NotNull(message = "{attachment.file_size.not_null}")

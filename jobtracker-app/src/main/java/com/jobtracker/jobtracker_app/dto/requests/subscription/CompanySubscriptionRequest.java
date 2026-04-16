@@ -16,13 +16,13 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CompanySubscriptionRequest {
 
-    @NotBlank
+    @NotBlank(message = "{company_subscription.company_id.not_blank}")
     String companyId;
 
-    @NotBlank
+    @NotBlank(message = "{company_subscription.plan_id.not_blank}")
     String planId;
 
-    @NotNull
+    @NotNull(message = "{company_subscription.start_date.not_null}")
     LocalDateTime startDate;
 
     LocalDateTime endDate;

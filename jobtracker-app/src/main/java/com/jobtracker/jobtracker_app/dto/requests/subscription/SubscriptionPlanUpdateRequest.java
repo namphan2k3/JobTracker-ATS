@@ -13,16 +13,16 @@ import java.math.BigDecimal;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SubscriptionPlanUpdateRequest {
-    @NotBlank
-    @Size(max = 100)
+    @NotBlank(message = "{subscription_plan.name.not_blank}")
+    @Size(max = 100, message = "{subscription_plan.name.size}")
     String name;
 
-    @NotNull
-    @DecimalMin(value = "0.0", inclusive = true)
+    @NotNull(message = "{subscription_plan.price.not_null}")
+    @DecimalMin(value = "0.0", inclusive = true, message = "{subscription_plan.price.min}")
     BigDecimal price;
 
-    @NotNull
-    @Min(0)
+    @NotNull(message = "{subscription_plan.duration_days.not_null}")
+    @Min(value = 0, message = "{subscription_plan.duration_days.min}")
     Integer durationDays;
 
     Integer maxJobs;
