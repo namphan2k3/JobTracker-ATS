@@ -20,7 +20,6 @@ public interface RoleMapper {
     @Mapping(target = "rolePermissions", ignore = true)
     Role toRole(RoleCreationRequest request);
 
-    @Mapping(target = "name", ignore = true)
     @Mapping(target = "permissionIds", expression = "java(mapPermissionIds(role))")
     @Mapping(target = "permissions", expression = "java(mapPermissions(role))")
     RoleResponse toRoleResponse(Role role);
