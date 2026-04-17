@@ -30,6 +30,7 @@ public class ApplicationResponse {
     String assignedToName;
     Integer matchScore;
     ApplicationScoringResult matchScoreDetails;
+    Boolean allowAdditionalUploads;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }
